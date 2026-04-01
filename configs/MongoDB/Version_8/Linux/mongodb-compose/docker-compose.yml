@@ -1,0 +1,34 @@
+# docker-compose.yml
+# MongoDB 8
+# https://hub.docker.com/_/mongo
+# https://hub.docker.com/_/adminer
+# Start:
+# docker compose up -d
+# Stop:
+# docker compose down
+# Logs:
+# docker compose logs -f
+services:
+  mongodb:
+    image: mongo:8-noble
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    command:
+      - '--auth'
+      - '--config'
+      - '/etc/mongo/mongod.conf'
+      - '-vvv'
+    volumes:
+      - mongo:/data/db
+      - ../mongod.conf:/etc/mongo/mongod.conf
+      - ./test-ca.pem:/etc/ssl/mongodb/test-ca.pem
+      - ./test-server1.pem:/etc/ssl/mongodb/test-server1.pem
+    ports:
+      - "127.0.0.1:27017:27017"
+
+volumes:
+  mongo:
+  

@@ -1,0 +1,118 @@
+services:
+  weaviate-db-proxy:
+    image: cr.weaviate.io/semitechnologies/weaviate:${WEAVIATE_VERSION}
+    container_name: weaviate-db-proxy
+    restart: on-failure:0
+    command: ["--host","${WEAVIATE_HOST}","--port","${WEAVIATE_PORT}","--scheme","${WEAVIATE_SCHEME}"]
+
+    environment:
+      TZ: ${TZ}
+      QUERY_DEFAULTS_LIMIT: ${WEAVIATE_QUERY_LIMIT}
+      PERSISTENCE_DATA_PATH: ${WEAVIATE_DATA_PATH}
+      CLUSTER_HOSTNAME: ${WEAVIATE_CLUSTER_HOSTNAME}
+      DISABLE_TELEMETRY: ${DISABLE_TELEMETRY:-true}
+      QUERY_SLOW_LOG_ENABLED: ${QUERY_SLOW_LOG_ENABLED:-true}
+
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: ${AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED}
+      AUTHENTICATION_APIKEY_ENABLED: ${AUTHENTICATION_APIKEY_ENABLED}
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_API_KEYS}
+      AUTHENTICATION_APIKEY_USERS: ${WEAVIATE_API_USERS}
+      AUTHORIZATION_ENABLE_RBAC: ${AUTHORIZATION_ENABLE_RBAC}
+      AUTHORIZATION_RBAC_ROOT_USERS: ${WEAVIATE_ROOT_USERS}
+
+      ENABLE_API_BASED_MODULES: ${ENABLE_API_BASED_MODULES}
+      ENABLE_MODULES: ${ENABLE_MODULES}
+
+    ports:
+      - "127.0.0.1:${WEAVIATE_PORT}:${WEAVIATE_PORT}"
+      - "127.0.0.1:${WEAVIATE_GRPC_PORT:-50051}:${WEAVIATE_GRPC_PORT:-50051}"
+
+    volumes:
+      - weaviate_data_proxy:${WEAVIATE_DATA_PATH}
+
+    # --- Container hardening ---
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: "4g"
+    cpus: "2.0"
+
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://127.0.0.1:${WEAVIATE_PORT}/v1/.well-known/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - proxy
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.weav.rule=Host(`${WEAVIATE_DOMAIN}`)
+      - traefik.http.routers.weav.entrypoints=websecure
+      - traefik.http.routers.weav.tls=true
+      - traefik.http.services.weav.loadbalancer.server.port=${WEAVIATE_PORT}
+      - traefik.http.routers.weav.middlewares=secure-headers@file
+
+  traefik:
+    image: traefik:v3.5
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+
+      - --providers.docker=true
+      - --providers.docker.network=proxy
+      - --providers.docker.exposedbydefault=false
+
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+
+      - --api.dashboard=true
+
+    ports:
+      - "80:80"
+      - "443:443"
+      
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./certs:/certs:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+
+    networks:
+      - proxy
+
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_DOMAIN}`)
+      - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.tls=true
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.routers.traefik.middlewares=secure-headers@file
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    profiles: ["ollama"]  # optional; start with: docker compose --profile ollama up -d
+    networks:
+      - proxy
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+
+networks:
+  proxy:
+    name: proxy
+
+volumes:
+  weaviate_data_proxy:
+  ollama_data:

@@ -1,0 +1,42 @@
+# docker-compose.yml
+# MySQL 8.4.6
+# https://hub.docker.com/_/mysql
+# https://hub.docker.com/_/adminer
+
+services:
+  mysql:
+    image: mysql:8.4.6
+    container_name: mysql
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306" # for container communication
+    environment:
+      TZ: "${TZ:-Europe/Berlin}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    healthcheck:
+      test: ["CMD-SHELL", "mysql -uroot -p$$MYSQL_ROOT_PASSWORD -e 'SELECT 1;' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ../my.cnf:/etc/mysql/conf.d/my.cnf:ro
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+volumes:
+  mysql_data:

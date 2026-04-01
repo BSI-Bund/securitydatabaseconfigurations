@@ -1,0 +1,15 @@
+tls:
+  certificates:
+    - certFile: /certs/local.crt
+      keyFile: /certs/local.key
+
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        frameDeny: true
+        contentTypeNosniff: true
+        referrerPolicy: "strict-origin-when-cross-origin"
+        stsSeconds: 31536000
+        stsIncludeSubdomains: true
+        stsPreload: true

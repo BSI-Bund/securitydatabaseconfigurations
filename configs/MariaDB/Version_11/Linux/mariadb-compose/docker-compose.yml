@@ -1,0 +1,58 @@
+# docker-compose.yml
+# MariaDB 11
+# https://hub.docker.com/_/mariadb
+# https://hub.docker.com/_/adminer
+# Start:
+# docker compose up -d
+# Stop:
+# docker compose down
+# Logs:
+# docker compose logs -f
+# MariaDB console:
+# docker compose exec mariadb mariadb -uroot -p
+# Place initial SQL scripts in initdb/ (only executed on first start)
+# Create a .env file with passwords and settings (see .env.example)
+services:
+  mariadb:
+    image: mariadb:${MARIADB_VERSION:-11.8}
+    container_name: mariadb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DB_PORT:-3306}:3306"   # bind to localhost only
+    environment:
+      TZ: "${TZ:-Europe/Berlin}"
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+      MARIADB_DATABASE: "${MARIADB_DATABASE}"
+      MARIADB_USER: "${MARIADB_USER}"
+      MARIADB_PASSWORD: "${MARIADB_PASSWORD}"
+      MARIADB_CHARACTER_SET_SERVER: "utf8mb4"
+      MARIADB_COLLATION_SERVER: "utf8mb4_general_ci"
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -uroot -p$$MARIADB_ROOT_PASSWORD -e 'SELECT 1;' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      # Custom configuration(s):
+      - ../mariadb.cnf:/etc/mysql/conf.d/my.cnf:ro
+      # - ./conf.d/:/etc/mysql/conf.d/:ro
+
+# Adminer in the browser:
+# http://localhost:8080
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+volumes:
+  mariadb_data:

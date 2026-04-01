@@ -1,0 +1,72 @@
+[client]
+port   = 3306                                # Default port for MariaDB client
+socket = /var/run/mysqld/mysqld.sock          # Socket for local connections (Unix)
+
+[mysqld]
+port      = 3306                              # Default port
+basedir   = /usr                              # Installation directory
+datadir   = /var/lib/mysql                    # Data directory
+socket    = /var/run/mysqld/mysqld.sock       # Unix domain socket
+pid-file  = /var/run/mysqld/mysqld.pid        # PID file
+
+### Network & security ###
+bind_address        = 0.0.0.0                 # Local connections only (0.0.0.0 = remote access, incl. containers)
+skip_networking     = 0                       # 1 = TCP/IP off (socket only)
+skip_name_resolve   = 1                       # No DNS lookups → faster & safer
+max_connections     = 200                     # Max concurrent connections
+local_infile        = 0                       # Disable insecure LOAD DATA LOCAL
+symbolic-links      = 0                       # Prevent symlink abuse
+#secure_file_priv    = /var/lib/mysql-files   # Restrict import/export to this path
+
+### Storage & performance ###
+innodb_buffer_pool_size        = 4G           # 50–80% of RAM
+innodb_log_file_size           = 256M         # Redo log size (workload dependent)
+innodb_file_per_table          = 1            # Separate .ibd per table
+innodb_flush_log_at_trx_commit = 1            # 1 = full ACID (2 = faster, less durable)
+# innodb_flush_method           = O_DIRECT    # Optional on Linux, reduces OS cache duplication
+
+### Character sets ###
+character_set_server = utf8mb4                # Recommended since MariaDB 10.6+
+collation_server     = utf8mb4_general_ci     # Default; choose locale-specific if needed
+
+### Logging ###
+log_error                   = /var/log/mysql/error.log
+slow_query_log              = 1
+slow_query_log_file         = /var/log/mysql/mysql-slow.log
+long_query_time             = 2               # >2 s counts as slow
+log_queries_not_using_indexes = 1             # Log queries without indexes
+general_log                 = 0               # Enable for debugging only
+general_log_file            = /var/log/mysql/mysql-general.log
+
+### Binary logs (replication & PITR) ###
+log_bin       = /var/log/mysql/mysql-bin.log
+log_bin_index = /var/log/mysql/mysql-bin.index
+binlog_format = MIXED                         # MariaDB default; ROW is alternative
+sync_binlog   = 1                             # Maximum safety
+expire_logs_days = 7                          # Delete binlogs after 7 days
+# binlog_expire_logs_seconds = 604800         # Alternative seconds value (not together)
+
+### TLS/SSL for the server ###
+ssl-ca   = /etc/mysql/ssl/ca-cert.pem
+ssl-cert = /etc/mysql/ssl/server-cert.pem
+ssl-key  = /etc/mysql/ssl/server-key.pem
+require_secure_transport = ON     # Enforces TLS for all clients
+
+
+### TLS/SSL for the client (optional) ###
+#[client-mariadb]
+#ssl-ca   = /etc/mysql/ssl/ca-cert.pem
+#ssl-cert = /etc/mysql/ssl/client-cert.pem
+#ssl-key  = /etc/mysql/ssl/client-key.pem
+#ssl-verify-server-cert
+
+[mysqldump]
+quick
+quote-names
+max_allowed_packet = 64M                      # Allow larger dumps
+
+### Notes ###
+# - Certificates with restrictive permissions (chmod 600, mysql user).
+# - CN/SAN of the server certificate should match the hostname.
+# - Restart MariaDB after config/cert changes.
+# - Enforce TLS via SQL: ALTER USER 'app'@'%' REQUIRE SSL;

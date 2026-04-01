@@ -1,0 +1,51 @@
+services:
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:${WEAVIATE_VERSION}
+    container_name: weaviate-db
+    restart: on-failure:0
+    command: ["--host","${WEAVIATE_HOST}","--port","${WEAVIATE_PORT}","--scheme","${WEAVIATE_SCHEME}"]
+    ports:
+      - "127.0.0.1:${WEAVIATE_PORT}:${WEAVIATE_PORT}"
+    environment:
+      TZ: ${TZ}
+      # Basics
+      QUERY_DEFAULTS_LIMIT: ${WEAVIATE_QUERY_LIMIT}
+      PERSISTENCE_DATA_PATH: ${WEAVIATE_DATA_PATH}
+      CLUSTER_HOSTNAME: ${WEAVIATE_CLUSTER_HOSTNAME}
+      DISABLE_TELEMETRY: ${DISABLE_TELEMETRY:-true}
+      QUERY_SLOW_LOG_ENABLED: ${QUERY_SLOW_LOG_ENABLED:-true}
+
+      # Auth / RBAC
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: ${AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED}
+      AUTHENTICATION_APIKEY_ENABLED: ${AUTHENTICATION_APIKEY_ENABLED}
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: ${WEAVIATE_API_KEYS}
+      AUTHENTICATION_APIKEY_USERS: ${WEAVIATE_API_USERS}
+      AUTHORIZATION_ENABLE_RBAC: ${AUTHORIZATION_ENABLE_RBAC}
+      AUTHORIZATION_RBAC_ROOT_USERS: ${WEAVIATE_ROOT_USERS}
+
+      # Modules (only if used — set in .env)
+      ENABLE_API_BASED_MODULES: ${ENABLE_API_BASED_MODULES}
+      ENABLE_MODULES: ${ENABLE_MODULES}
+      # MODULES_CLIENT_TIMEOUT: "120s"   # optional for long LLM responses
+      # LOG_LEVEL: "info"                # optional
+    volumes:
+      - weaviate_data:${WEAVIATE_DATA_PATH}
+      
+     # --- Container hardening ---
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: ["ALL"]
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: "4g"
+    cpus: "2.0"
+
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://127.0.0.1:${WEAVIATE_PORT}/v1/.well-known/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  weaviate_data:

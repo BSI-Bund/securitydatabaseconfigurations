@@ -1,0 +1,8 @@
+.env
+.DS*
+users.acl
+*_mine*
+*.mine*
+*.crt
+*.key
+
