@@ -95,12 +95,13 @@ DatabaseSystem/                             # DBMS name
 ✅ MariaDB  
 ✅ MongoDB  
 ✅ MySQL  
-✅ Weaviate  
+✅ Weaviate
+✅ Redis
 
 Coming soon:
 
+➡️ Neo4j
 ➡️ PostgreSQL  
-➡️ Redis  
 
 ---
 
