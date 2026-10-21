@@ -116,7 +116,7 @@ Coming soon:
 
 ## 🔒 TLS configuration
 
-This guide shows how to create your own **Certificate Authority (CA)** with OpenSSL and issue **server and client certificates** for applications such as MongoDB.
+This guide shows how to create your own **Certificate Authority (CA)** with OpenSSL on Windows and issue **server and client certificates** for applications such as MongoDB. The X.509 extensions are defined explicitly so that the resulting certificates remain reviewable and reproducible instead of depending on local OpenSSL defaults.
 
 ---
 
@@ -124,24 +124,27 @@ This guide shows how to create your own **Certificate Authority (CA)** with Open
 
 * Installed [OpenSSL for Windows](https://slproweb.com/products/Win32OpenSSL.html)
 * Write access to the certificate directory (e.g., `C:\data`)
-* Path to `openssl.cnf` (e.g., `C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf`)
+* Replace the example DNS names and IP addresses with values matching the target environment
+
+> [!IMPORTANT]
+> Private keys must be protected with restrictive file permissions. The CA private key is encrypted with AES-256 in this example. Server and client private keys remain unencrypted for unattended service use and therefore require appropriate filesystem protection.
 
 ---
 
 ### 🏗️ 1. Create CA
 
 ```powershell
-# Generate CA key
-openssl genrsa -out test-ca.key 4096
+# Generate an encrypted CA private key
+openssl genrsa -aes256 -out test-ca.key 4096
 
-# Create CA certificate
-openssl req -x509 -new -nodes -key test-ca.key -sha256 -days 365 -out test-ca.pem -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
+# Create the CA certificate with explicit CA extensions
+openssl req -x509 -new -key test-ca.key -sha256 -days 365 -out test-ca.pem -subj "/CN=MongoDB Test CA" -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
 ```
 
 Result:
 
-* `test-ca.key` → CA private key
-* `test-ca.pem` → self-signed CA certificate
+* `test-ca.key` → AES-256-encrypted CA private key
+* `test-ca.pem` → self-signed CA certificate with explicit CA properties
 
 ---
 
@@ -151,43 +154,79 @@ Result:
 # Generate server key
 openssl genrsa -out mongo-server1.key 4096
 
-# Create CSR
-openssl req -new -key mongo-server1.key -out mongo-server1.csr -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
+# Create Certificate Signing Request (CSR)
+openssl req -new -key mongo-server1.key -out mongo-server1.csr -subj "/CN=mongo-server1"
 
-# Sign CSR with CA
-openssl x509 -req -in mongo-server1.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-server1.crt -days 365 -sha256
+# Define explicit X.509 extensions for the server certificate
+@"
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:mongo-server1,DNS:localhost,IP:127.0.0.1
+"@ | Set-Content -Encoding ascii server-ext.cnf
 
-# Combine key + cert for MongoDB
-copy /b mongo-server1.key+mongo-server1.crt mongo-server1.pem
+# Sign CSR with the CA and the explicit server extensions
+openssl x509 -req -in mongo-server1.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-server1.crt -days 365 -sha256 -extfile server-ext.cnf
+
+# Combine key + certificate for MongoDB
+cmd /c copy /b mongo-server1.key+mongo-server1.crt mongo-server1.pem
 ```
+
+> [!NOTE]
+> The `subjectAltName` values must match the DNS names or IP addresses clients actually use to reach the MongoDB server. Certificate identity verification uses these values for hostname validation.
 
 Result:
 
-* `mongo-server1.pem` → certificate MongoDB uses (includes key + CRT)
+* `mongo-server1.pem` → server certificate including the private key and certificate
+* `server-ext.cnf` → explicit X.509 extensions for the server certificate
 
 ---
 
 ### 👤 3. Create and sign client certificate
 
 ```powershell
-# Generate client key and CSR
+# Generate client key
 openssl genrsa -out mongo-client.key 4096
-openssl req -new -key mongo-client.key -out mongo-client.csr -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
 
-# Sign CSR with CA
-openssl x509 -req -in mongo-client.csr -CA C:\data\test-ca.pem -CAkey C:\data\test-ca.key -CAcreateserial -out mongo-client.crt -days 365 -sha256
+# Create Certificate Signing Request (CSR)
+openssl req -new -key mongo-client.key -out mongo-client.csr -subj "/CN=mongo-client"
 
-# Combine key + cert for the client
-copy /b mongo-client.key+mongo-client.crt mongo-client.pem
+# Define explicit X.509 extensions for the client certificate
+@"
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=clientAuth
+"@ | Set-Content -Encoding ascii client-ext.cnf
+
+# Sign CSR with the CA and the explicit client extensions
+openssl x509 -req -in mongo-client.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-client.crt -days 365 -sha256 -extfile client-ext.cnf
+
+# Combine key + certificate for the client
+cmd /c copy /b mongo-client.key+mongo-client.crt mongo-client.pem
 ```
 
 Result:
 
-* `mongo-client.pem` → certificate the client uses (includes key + CRT)
+* `mongo-client.pem` → client certificate including the private key and certificate
+* `client-ext.cnf` → explicit X.509 extensions for the client certificate
 
 ---
 
-### ⚡ 4. MongoDB TLS configuration
+### 🔍 4. Verify certificates
+
+The generated certificates and their extensions should be reviewed before use:
+
+```powershell
+openssl x509 -in test-ca.pem -noout -text
+openssl x509 -in mongo-server1.crt -noout -text
+openssl x509 -in mongo-client.crt -noout -text
+```
+
+The server certificate should show `CA:FALSE`, `TLS Web Server Authentication`, and the expected Subject Alternative Names. The client certificate should show `TLS Web Client Authentication`.
+
+---
+
+### ⚡ 5. MongoDB TLS configuration
 
 ### 🧩 `mongod.conf` example
 
@@ -205,9 +244,10 @@ net:
 
 ### 📋 Summary
 
-* **CA created** (`test-ca.pem`, `test-ca.key`)
-* **Server certificate created and signed** (`mongo-server1.pem`)
-* **Client certificate created and signed** (`mongo-client.pem`)
+* **Encrypted CA key and CA certificate created** (`test-ca.key`, `test-ca.pem`)
+* **Server certificate created with explicit SAN and `serverAuth`** (`mongo-server1.pem`)
+* **Client certificate created with explicit `clientAuth`** (`mongo-client.pem`)
+* **X.509 extensions can be reviewed before use**
 * **MongoDB TLS enabled** via `mongod.conf`
 
 ---

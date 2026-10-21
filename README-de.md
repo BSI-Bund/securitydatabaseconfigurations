@@ -116,7 +116,7 @@ Bald verfügbar:
 
 ## 🔒 TLS-Konfiguration
 
-Diese Anleitung beschreibt, wie man unter Windows mit OpenSSL eine eigene **Certificate Authority (CA)** erstellt und damit **Server- und Client-Zertifikate** für z. B. MongoDB erzeugt.
+Diese Anleitung beschreibt, wie man unter Windows mit OpenSSL eine eigene **Certificate Authority (CA)** erstellt und damit **Server- und Client-Zertifikate** für z. B. MongoDB erzeugt. Die verwendeten X.509-Erweiterungen werden explizit definiert, damit die erzeugten Zertifikate unabhängig von lokalen OpenSSL-Standardwerten nachvollziehbar und reproduzierbar bleiben.
 
 ---
 
@@ -124,24 +124,27 @@ Diese Anleitung beschreibt, wie man unter Windows mit OpenSSL eine eigene **Cert
 
 * Installiertes [OpenSSL für Windows](https://slproweb.com/products/Win32OpenSSL.html)
 * Schreibrechte im gewünschten Zertifikatsverzeichnis (z. B. `C:\data`)
-* Pfad zur `openssl.cnf` Konfigurationsdatei (z. B. `C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf`)
+* Die Beispielwerte für DNS-Namen und IP-Adressen müssen an die eigene Umgebung angepasst werden
+
+> [!IMPORTANT]
+> Die privaten Schlüssel müssen mit restriktiven Dateiberechtigungen geschützt werden. Der CA-Schlüssel wird in diesem Beispiel mit AES-256 verschlüsselt. Server- und Client-Schlüssel bleiben für die automatisierte Verwendung durch Dienste unverschlüsselt und müssen entsprechend über Dateiberechtigungen geschützt werden.
 
 ---
 
 ### 🏗️ 1. CA erstellen
 
 ```powershell
-# CA-Key erzeugen
-openssl genrsa -out test-ca.key 4096
+# Verschlüsselten CA-Key erzeugen
+openssl genrsa -aes256 -out test-ca.key 4096
 
-# CA-Zertifikat erstellen
-openssl req -x509 -new -nodes -key test-ca.key -sha256 -days 365 -out test-ca.pem -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
+# CA-Zertifikat mit expliziten CA-Erweiterungen erstellen
+openssl req -x509 -new -key test-ca.key -sha256 -days 365 -out test-ca.pem -subj "/CN=MongoDB Test CA" -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
 ```
 
 Ergebnis:
 
-* `test-ca.key` → privater Schlüssel der CA
-* `test-ca.pem` → selbstsigniertes CA-Zertifikat
+* `test-ca.key` → AES-256-verschlüsselter privater Schlüssel der CA
+* `test-ca.pem` → selbstsigniertes CA-Zertifikat mit expliziten CA-Eigenschaften
 
 ---
 
@@ -152,42 +155,78 @@ Ergebnis:
 openssl genrsa -out mongo-server1.key 4096
 
 # Certificate Signing Request (CSR) erzeugen
-openssl req -new -key mongo-server1.key -out mongo-server1.csr -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
+openssl req -new -key mongo-server1.key -out mongo-server1.csr -subj "/CN=mongo-server1"
 
-# CSR mit der CA signieren
-openssl x509 -req -in mongo-server1.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-server1.crt -days 365 -sha256
+# X.509-Erweiterungen für das Server-Zertifikat definieren
+@"
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=DNS:mongo-server1,DNS:localhost,IP:127.0.0.1
+"@ | Set-Content -Encoding ascii server-ext.cnf
+
+# CSR mit der CA und den expliziten Server-Erweiterungen signieren
+openssl x509 -req -in mongo-server1.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-server1.crt -days 365 -sha256 -extfile server-ext.cnf
 
 # PEM-Datei für MongoDB erstellen (Key + Zertifikat zusammenführen)
-copy /b mongo-server1.key+mongo-server1.crt mongo-server1.pem
+cmd /c copy /b mongo-server1.key+mongo-server1.crt mongo-server1.pem
 ```
+
+> [!NOTE]
+> Die Werte in `subjectAltName` müssen den DNS-Namen beziehungsweise IP-Adressen entsprechen, über die Clients den MongoDB-Server tatsächlich erreichen. Bei einer Identitätsprüfung des Zertifikats werden diese Werte zur Host-Verifikation verwendet.
 
 Ergebnis:
 
-* `mongo-server1.pem` → vom Server verwendetes Zertifikat (enthält Key + CRT)
+* `mongo-server1.pem` → vom Server verwendetes Zertifikat inklusive privatem Schlüssel und Zertifikat
+* `server-ext.cnf` → explizite X.509-Erweiterungen für das Server-Zertifikat
 
 ---
 
 ### 👤 3. Client-Zertifikat erstellen und signieren
 
 ```powershell
-# Client-Key und CSR erzeugen
+# Client-Key erzeugen
 openssl genrsa -out mongo-client.key 4096
-openssl req -new -key mongo-client.key -out mongo-client.csr -config "C:\Users\<User>\openssl-3.5.3\apps\openssl.cnf"
 
-# CSR mit der CA signieren
-openssl x509 -req -in mongo-client.csr -CA C:\data\test-ca.pem -CAkey C:\data\test-ca.key -CAcreateserial -out mongo-client.crt -days 365 -sha256
+# Certificate Signing Request (CSR) erzeugen
+openssl req -new -key mongo-client.key -out mongo-client.csr -subj "/CN=mongo-client"
+
+# X.509-Erweiterungen für das Client-Zertifikat definieren
+@"
+basicConstraints=critical,CA:FALSE
+keyUsage=critical,digitalSignature,keyEncipherment
+extendedKeyUsage=clientAuth
+"@ | Set-Content -Encoding ascii client-ext.cnf
+
+# CSR mit der CA und den expliziten Client-Erweiterungen signieren
+openssl x509 -req -in mongo-client.csr -CA test-ca.pem -CAkey test-ca.key -CAcreateserial -out mongo-client.crt -days 365 -sha256 -extfile client-ext.cnf
 
 # PEM-Datei für den Client erstellen (Key + Zertifikat zusammenführen)
-copy /b mongo-client.key+mongo-client.crt mongo-client.pem
+cmd /c copy /b mongo-client.key+mongo-client.crt mongo-client.pem
 ```
 
 Ergebnis:
 
-* `mongo-client.pem` → vom Client verwendetes Zertifikat (enthält Key + CRT)
+* `mongo-client.pem` → vom Client verwendetes Zertifikat inklusive privatem Schlüssel und Zertifikat
+* `client-ext.cnf` → explizite X.509-Erweiterungen für das Client-Zertifikat
 
 ---
 
-### ⚡ 4. MongoDB TLS-Konfiguration
+### 🔍 4. Zertifikate prüfen
+
+Vor der Verwendung sollten die erzeugten Zertifikate und ihre Erweiterungen geprüft werden:
+
+```powershell
+openssl x509 -in test-ca.pem -noout -text
+openssl x509 -in mongo-server1.crt -noout -text
+openssl x509 -in mongo-client.crt -noout -text
+```
+
+Für das Server-Zertifikat sollten insbesondere `CA:FALSE`, `TLS Web Server Authentication` und die erwarteten Subject Alternative Names sichtbar sein. Beim Client-Zertifikat sollte `TLS Web Client Authentication` gesetzt sein.
+
+---
+
+### ⚡ 5. MongoDB TLS-Konfiguration
 
 #### 🧩 `mongod.conf` Beispiel
 
@@ -205,9 +244,10 @@ net:
 
 ### 📋 Zusammenfassung
 
-* **CA erstellt** (`test-ca.pem`, `test-ca.key`)
-* **Server-Zertifikat erzeugt und signiert** (`mongo-server1.pem`)
-* **Client-Zertifikat erzeugt und signiert** (`mongo-client.pem`)
+* **Verschlüsselter CA-Schlüssel und CA-Zertifikat erstellt** (`test-ca.key`, `test-ca.pem`)
+* **Server-Zertifikat mit explizitem SAN und `serverAuth` erzeugt** (`mongo-server1.pem`)
+* **Client-Zertifikat mit explizitem `clientAuth` erzeugt** (`mongo-client.pem`)
+* **X.509-Erweiterungen vor der Verwendung überprüfbar**
 * **MongoDB TLS aktiviert** über `mongod.conf`
 
 ---
