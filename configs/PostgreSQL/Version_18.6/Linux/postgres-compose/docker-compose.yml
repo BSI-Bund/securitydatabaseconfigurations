@@ -1,0 +1,55 @@
+# docker-compose.yml
+# PostgreSQL 18.6
+# https://hub.docker.com/_/postgres
+# https://hub.docker.com/_/adminer
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-18.6}
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    environment:
+      TZ: "${TZ:-Europe/Berlin}"
+      POSTGRES_DB: "${POSTGRES_DB}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_APP_ADMIN_PASSWORD: "${POSTGRES_APP_ADMIN_PASSWORD:-S3cur3P@ss!}"
+      POSTGRES_APP_READER_PASSWORD: "${POSTGRES_APP_READER_PASSWORD:-Read0nly!}"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+      PGDATA: "${PGDATA:-/var/lib/postgresql/18/docker}"
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql.conf"
+      - "-c"
+      - "hba_file=/etc/postgresql/pg_hba.conf"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+      - ../postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ../pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      # Enable after creating certificates and setting ssl = on:
+      # - ./ssl:/etc/postgresql/ssl:ro
+
+  adminer:
+    image: adminer:latest
+    container_name: postgres-adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${ADMINER_PORT:-8080}:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

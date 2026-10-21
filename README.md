@@ -92,16 +92,16 @@ DatabaseSystem/                             # DBMS name
 
 ## 🛠️ Supported databases
 
-✅ MariaDB  
-✅ MongoDB  
-✅ MySQL  
-✅ Weaviate
-✅ Redis
+- ✅ MariaDB
+- ✅ MongoDB
+- ✅ MySQL
+- ✅ PostgreSQL
+- ✅ Redis
+- ✅ Weaviate
 
 Coming soon:
 
-➡️ Neo4j
-➡️ PostgreSQL  
+- ➡️ Neo4j
 
 ---
 
@@ -259,4 +259,4 @@ Before using them in production, review them carefully and adapt them to your **
 
 ---
 
-© 2025 – Secure database configurations
+© 2026 – Secure database configurations

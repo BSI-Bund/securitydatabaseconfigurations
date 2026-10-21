@@ -1,0 +1,19 @@
+# docker-compose.tls.yml
+# TLS override for PostgreSQL 18.6.
+#
+# Generate certificates first:
+#   ./scripts/generate-local-tls.sh
+#
+# Start with:
+#   docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+
+services:
+  postgres:
+    command:
+      - "postgres"
+      - "-c"
+      - "config_file=/etc/postgresql/postgresql-tls.conf"
+    volumes:
+      - ../postgresql-tls.conf:/etc/postgresql/postgresql-tls.conf:ro
+      - ../pg_hba-tls.conf:/etc/postgresql/pg_hba-tls.conf:ro
+      - ./ssl:/etc/postgresql/ssl:ro

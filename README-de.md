@@ -86,22 +86,22 @@ Datenbanksystem/                                # Bezeichnung des DBMS
     └── Windows/                                # Klassische Konfiguration für lokale Installation unter Windows
         ├── init_scripts/                       # Skripte zur Datenbankinitialisierung
         ├── config_description-windows.md       # Beschreibung der sicherheitsrelevanten Einstellungen und deren Zweck
-        └── *Konfigurationsdatei*               # Konfigurationsdatei des jeweilligen DBMS
+        └── *Konfigurationsdatei*               # Konfigurationsdatei des jeweiligen DBMS
 ```
 ---
 
 ## 🛠️ Unterstützte Datenbanken
 
-✅ MariaDB  
-✅ MongoDB  
-✅ MySQL  
-✅ Weaviate
-✅ Redis 
+- ✅ MariaDB
+- ✅ MongoDB
+- ✅ MySQL
+- ✅ PostgreSQL
+- ✅ Redis
+- ✅ Weaviate
 
 Bald verfügbar:
 
-➡️ Neo4j
-➡️ PostgreSQL 
+- ➡️ Neo4j
 
 ---
 
@@ -259,4 +259,4 @@ Vor der Verwendung in einer Produktionsumgebung müssen sie sorgfältig geprüft
 
 ---
 
-© 2025 – Sichere Datenbankkonfigurationen
+© 2026 – Sichere Datenbankkonfigurationen
