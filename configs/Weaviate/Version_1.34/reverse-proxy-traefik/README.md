@@ -1,289 +1,130 @@
-# 🧠 Weaviate 1.34.0 behind Traefik proxy (TLS, API key, RBAC)
+# Weaviate 1.34.0 with Traefik and TLS
 
-This setup provides a hardened **Weaviate 1.34.0** instance with its
-**HTTP API exposed through a Traefik v3.5 reverse proxy** using **TLS**.  
-Direct local access remains available on `127.0.0.1:8080` (HTTP) and
-`127.0.0.1:50051` (gRPC, if enabled).  
-External access through Traefik is HTTPS only:
+[Deutsch](README-de.md) · [Base Weaviate variant](../README.md) · [BSI alignment](../../../README.md#bsi-alignment)
 
-- `https://weaviate.docker.localhost` – Weaviate API
-- `https://traefik.docker.localhost` – Traefik dashboard (optional)
+This independent Compose setup exposes Weaviate over HTTPS through Traefik v3.5. It uses its own data volume, `weaviate_data_proxy`; data from the base variant is not transferred automatically.
 
-Focus: **security by default**
-- 🔐 API key authentication  
-- 🔏 RBAC enabled  
-- 🛡️ Container hardening (cap_drop, no-new-privileges, read-only)  
-- 🌐 TLS via Traefik  
-- 🚫 No anonymous access  
+- [Preparation and network exposure](#preparation-and-network-exposure)
+- [Certificate and hostnames](#certificate-and-hostnames)
+- [Startup and TLS verification](#startup-and-tls-verification)
+- [Optional model integration with Ollama](#optional-model-integration-with-ollama)
+- [Python examples](#python-examples)
+- [Operations and data](#operations-and-data)
+- [References](#references)
 
----
+## Preparation and network exposure
 
-## 📂 Project structure
-
-```text
-reverse-proxy-traefik/
-├── docker-compose.yml
-├── .env.example
-├── certs/
-│   ├── local.crt
-│   └── local.key
-└── dynamic/
-    └── tls.yml
-```
-
----
-
-## ⚙️ Services
-
-### 1) Weaviate (`weaviate-db-proxy`)
-- Image: `cr.weaviate.io/semitechnologies/weaviate:1.34.0`
-- REST/GraphQL API on port `8080` (local only)
-- Authentication: `Authorization: Bearer <API_KEY>`
-- RBAC enabled
-- Modules optional via `.env`
-
-### 2) Traefik (`traefik`)
-- Reverse proxy & TLS termination
-- Redirect HTTP → HTTPS
-- Certificates from `./certs`
-- Security middleware: `secure-headers`
-
----
-
-## 🔐 `.env` – environment variables
-
-```dotenv
-WEAVIATE_VERSION=1.34.0
-WEAVIATE_HOST=0.0.0.0
-WEAVIATE_PORT=8080
-WEAVIATE_SCHEME=http
-TZ=Europe/Berlin
-
-WEAVIATE_DATA_PATH=/var/lib/weaviate
-WEAVIATE_QUERY_LIMIT=100
-WEAVIATE_CLUSTER_HOSTNAME=node1
-DISABLE_TELEMETRY=true
-QUERY_SLOW_LOG_ENABLED=true
-
-AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=false
-AUTHENTICATION_APIKEY_ENABLED=true
-WEAVIATE_API_KEYS=example-key-12345
-WEAVIATE_API_USERS=admin
-AUTHORIZATION_ENABLE_RBAC=true
-WEAVIATE_ROOT_USERS=admin
-
-ENABLE_API_BASED_MODULES=false
-ENABLE_MODULES=
-OLLAMA_ENDPOINT="http://127.0.0.1:11434"
-OLLAMA_ENDPOINT_WEAVIATE="http://ollama:11434"
-
-WEAVIATE_DOMAIN=weaviate.docker.localhost
-TRAEFIK_DASHBOARD_DOMAIN=traefik.docker.localhost
-```
-
-Notes:
-- No quotes around `true`/`false`.
-- Order of keys ↔ users must match exactly.
-- Rotate API keys regularly.
-
----
-
-## 🔏 TLS configuration
-
-### Create certificate
-
-Create a local certificate that covers both hostnames via SAN:
+Prerequisites: Docker with Compose, OpenSSL 3 for the certificate example, and free host ports. Every command assumes this README directory and a POSIX shell.
 
 ```bash
-openssl req -x509 -newkey rsa:4096 -nodes \
-  -keyout certs/local.key \
-  -out certs/local.crt \
-  -days 365 \
-  -subj "/CN=weaviate.docker.localhost" \
-  -addext "subjectAltName=DNS:weaviate.docker.localhost,DNS:traefik.docker.localhost"
+cp .env.example .env
 ```
 
-### `dynamic/tls.yml`
+Replace API keys in `.env` and check their mapping to `WEAVIATE_API_USERS`. `WEAVIATE_ROOT_USERS` determines root identities; assign appropriate roles to other users.
 
-```yaml
-tls:
-  certificates:
-    - certFile: /certs/local.crt
-      keyFile: /certs/local.key
+The [Compose file](docker-compose.yml) publishes these endpoints:
 
-http:
-  middlewares:
-    secure-headers:
-      headers:
-        frameDeny: true
-        contentTypeNosniff: true
-        referrerPolicy: "strict-origin-when-cross-origin"
-        stsSeconds: 31536000
-        stsIncludeSubdomains: true
-        stsPreload: true
-```
+| Endpoint | Template host binding | Transport |
+|----------|-----------------------|-----------|
+| Weaviate REST | `127.0.0.1:8080` | HTTP, direct local access |
+| Weaviate gRPC | `127.0.0.1:50051` | Unencrypted, published by default |
+| Traefik | `127.0.0.1:80` and `127.0.0.1:443` | HTTP redirect to HTTPS; TLS termination |
+| Ollama, only with the `ollama` profile | `127.0.0.1:11434` | HTTP |
 
----
+Traefik port mappings already bind to `127.0.0.1:80:80` and `127.0.0.1:443:443`. **The dashboard and insecure API access are disabled; no dashboard route exists.** For intended remote access, adjust only the required API exposure and firewall rules.
 
-## 🌐 Hosts entry (macOS / Linux)
+Direct local HTTP/gRPC access remains available. TLS terminates at Traefik; its internal connection to Weaviate uses HTTP. Compose container hardening options apply to Weaviate, not automatically to all services. Routing is defined in `dynamic/tls.yml` through the file provider; Traefik requires neither a Docker socket nor a Docker provider. `WEAVIATE_DOMAIN` and `WEAVIATE_PORT` are passed into the Traefik container for the dynamic template.
 
-```text
-127.0.0.1   weaviate.docker.localhost
-127.0.0.1   traefik.docker.localhost
-```
+## Certificate and hostnames
 
----
-
-## 🚀 Start & operations
-
-### Start  
-(see also the main Weaviate 1.34.0 README)
+Domains in `.env`, certificate SANs, and client connections must match. For the unchanged example domains:
 
 ```bash
+mkdir -p certs
+openssl req -x509 -newkey rsa:4096 -noenc -keyout certs/local.key -out certs/local.crt -days 365 -subj "/CN=weaviate.docker.localhost" -addext "basicConstraints=critical,CA:FALSE" -addext "keyUsage=critical,digitalSignature,keyEncipherment" -addext "extendedKeyUsage=serverAuth" -addext "subjectAltName=DNS:weaviate.docker.localhost"
+chmod 600 certs/local.key
+```
+
+This creates a local self-signed server certificate. Tests explicitly trust `certs/local.crt`; it does not replace certificate management for other environments. [`dynamic/tls.yml`](dynamic/tls.yml) loads `local.crt` and `local.key` and defines the header middleware. It also defines the router and backend service; the domain and backend port are populated from Traefik environment variables when loaded.
+
+The example domains must resolve to the local host. If local DNS does not already provide this, add these entries to `/etc/hosts`, or `C:\Windows\System32\drivers\etc\hosts` on Windows:
+
+```text
+127.0.0.1 weaviate.docker.localhost
+```
+
+## Startup and TLS verification
+
+```bash
+docker compose config --quiet
 docker compose pull
 docker compose up -d
-```
-
-### Stop
-
-```bash
-docker compose down
-```
-
-### Logs
-
-```bash
-docker logs weaviate-db-proxy --tail 50
-docker logs traefik --tail 50
-```
-
-### Status
-
-```bash
 docker compose ps
 ```
 
----
-
-## 🧪 Health checks
+The proxy variant's `.env.example` disables embedding modules. Ollama is not needed for these REST checks. Replace the API key placeholder with the value configured in `.env`:
 
 ```bash
-curl -i http://127.0.0.1:8080/v1/.well-known/ready
-curl -ik https://weaviate.docker.localhost/v1/meta -H "Authorization: Bearer example-key-12345"
-curl -ik https://weaviate.docker.localhost/v1/schema -H "Authorization: Bearer example-key-12345"
+export WEAVIATE_API_KEY='REPLACE_WITH_KEY_FROM_ENV'
+curl --fail-with-body --cacert certs/local.crt https://weaviate.docker.localhost/v1/.well-known/ready
+curl --fail-with-body --cacert certs/local.crt https://weaviate.docker.localhost/v1/meta -H "Authorization: Bearer ${WEAVIATE_API_KEY}"
+curl --fail-with-body --cacert certs/local.crt https://weaviate.docker.localhost/v1/schema -H "Authorization: Bearer ${WEAVIATE_API_KEY}"
 ```
 
----
+These commands verify the server certificate; `-k` is not needed. Readiness only confirms service readiness. Also verify the authenticated request succeeds. Compose healthchecks inspect the local HTTP endpoint; they do not establish that TLS or API key checks work.
 
-## TLS + authentication + REST-only client
+## Optional model integration with Ollama
 
-See `example-clients-python/weaviate-rest-minimal.py`.  
-This works without embedding modules (no Ollama, no OpenAI).
+The `ollama` service is already defined with a Compose profile. Set in `.env`:
 
-## 🧩 Optional AI integration with Ollama (embeddings & generative)
-
-See `example-clients-python/weaviate-ollama-client.py`.
-
-The base setup works **without** embedding modules.  
-Optionally, connect Weaviate to **Ollama** to:
-
-- Create vectors via `text2vec-ollama` (embeddings)
-- Generate responses via `generative-ollama`
-
-### 1. Provide Ollama
-
-**Ollama in a Docker container**
-
-For a fully containerized setup, use the existing optional `ollama` service
-in the same network as Weaviate, e.g.:
-
-```bash
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    restart: unless-stopped
-    networks:
-      - proxy
-    volumes:
-      - ollama_data:/root/.ollama
-    ports:
-      - "127.0.0.1:11434:11434"
-    profiles:
-      - ollama  # start with: docker compose --profile ollama up -d
-```
-
-In `.env`, enable the modules explicitly:
-
-```bash
+```dotenv
 ENABLE_API_BASED_MODULES=true
 ENABLE_MODULES=text2vec-ollama,generative-ollama
 ```
 
-Resulting endpoint for Weaviate: `http://ollama:11434`
-
-### 2. Configure models/endpoints
-Weaviate then knows the modules; the **model/endpoint** is set per collection in the client.
-
-Pull models in Docker:
-```bash
-docker exec -it ollama ollama pull nomic-embed-text
-docker exec -it ollama ollama pull llama3.2
-```
-
-### 3. Run
-
-In `/example-clients-python`:
+Then start the service and download models:
 
 ```bash
-pip install weaviate-client
-python weaviate-ollama-client.py
+docker compose --profile ollama up -d
+docker compose exec ollama ollama pull nomic-embed-text
+docker compose exec ollama ollama pull llama3.2
 ```
 
-The client:
-- Checks if Ollama is reachable at http://127.0.0.1:11434
-- Verifies `nomic-embed-text` and `llama3.2` exist
-- Creates collection `QuestionOllama` with:
-  - `text2vec-ollama` (embeddings)
-  - `generative-ollama` (LLM)
-- Inserts one example object: `question = "What is a vector database?"`
-- Runs a near_text search and generates an answer with `single_prompt`
-- Prints question + generated answer
+The endpoint **from Weaviate** is `http://ollama:11434`. The endpoint **for the client on the host** is `http://127.0.0.1:11434`. Models and endpoints are configured per collection. This template references the Ollama image as `latest`; select a suitable version before relying on reproducible deployments.
 
----
+## Python examples
 
-## 🛠️ Quick API checks (curl)
+- [REST example](example-clients-python/weaviate-rest-minimal.py): creates `Question`, downloads example data from the internet, and writes objects.
+- [Ollama example](example-clients-python/weaviate-ollama-client.py): checks models, creates or uses `QuestionOllama`, inserts an object, and performs a generative search.
 
-Use the reverse-proxy hostnames (TLS) and your API key:
+Both supplied scripts connect directly to the local HTTP endpoint; the Ollama example also uses local gRPC. They do not test the Traefik TLS endpoint. Adapt `API_KEY` in each script before running. The examples modify data and may add more objects on repeated runs.
+
+From a Python environment in this README directory, after completing the prerequisites for the respective example:
 
 ```bash
-# Ready & meta
-curl -ik https://weaviate.docker.localhost/v1/.well-known/ready -H "Authorization: Bearer example-key-12345"
-curl -ik https://weaviate.docker.localhost/v1/meta                  -H "Authorization: Bearer example-key-12345"
-
-# Schema view
-curl -ik https://weaviate.docker.localhost/v1/schema               -H "Authorization: Bearer example-key-12345"
-
-# Insert a sample object (class Question)
-curl -ik https://weaviate.docker.localhost/v1/objects \
-  -H "Authorization: Bearer example-key-12345" \
-  -H "Content-Type: application/json" \
-  -d '{"class":"Question","properties":{"question":"What is a vector database?","answer":"A DB that stores vectors for similarity search","category":"databases"},"vector":[0,0,0,0]}'
-
-# List objects (limit 3)
-curl -ik "https://weaviate.docker.localhost/v1/objects?class=Question&limit=3" \
-  -H "Authorization: Bearer example-key-12345"
-
-# GraphQL query
-curl -ik https://weaviate.docker.localhost/v1/graphql \
-  -H "Authorization: Bearer example-key-12345" \
-  -H "Content-Type: application/json" \
-  -d '{"query":"{ Get { Question(limit: 3) { question answer category _additional { id } } } }"}'
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install requests 'weaviate-client>=4,<5'
+python example-clients-python/weaviate-rest-minimal.py
+python example-clients-python/weaviate-ollama-client.py
 ```
 
-> Tip: Local REST access without Traefik also works via `http://127.0.0.1:8080/...`
-> (no TLS, no Host header). The Python Ollama example also uses local gRPC on
-> `127.0.0.1:50051`, not Traefik.
+The Ollama example requires enabled modules and downloaded models. Use a Python client version compatible with the server; the installation above only limits the major version to 4.
 
----
+## Operations and data
 
-© 2025 – Secure database configurations
+```bash
+docker compose logs --tail 100 weaviate-db-proxy traefik
+docker compose stop
+docker compose start
+docker compose down
+```
+
+`down` retains the data volumes. Set up backups, retention, and restore tests separately. Base and proxy variants use different Weaviate volumes and conflict on default local ports unless adjusted.
+
+## References
+
+- [Weaviate authentication](https://docs.weaviate.io/deploy/configuration/authentication)
+- [Traefik: dashboard and access protection](https://doc.traefik.io/traefik/v3.5/operations/dashboard/)
+- [Traefik: file provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/others/file/)
+- [Shared TLS guide](../../../../docs/TLS.md)

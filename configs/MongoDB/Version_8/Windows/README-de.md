@@ -1,151 +1,109 @@
-# <img src="https://www.svgrepo.com/show/331488/mongodb.svg" alt="MongoDB Logo" width="26"/> MongoDB – Windows
+# MongoDB 8 – Windows
 
-- [💾 Hinweise zur Installation unter Windows](#-hinweise-zur-installation-unter-windows)
-  - [📁 Anlegen des Datenverzeichnisses](#-anlegen-des-datenverzeichnisses)
-  - [🚀 MongoDB starten (Beispiel)](#-mongodb-starten-beispiel)
-- [📑 Beispiel `mongod.conf` (Kurz)](#-beispiel-mongodconf-kurz)
-- [📑 Parameter-Referenz (Kurz)](#-parameter-referenz-kurz)
-  - [🔐 security](#-security)
-  - [🌐 net](#-net)
-  - [📦 storage](#-storage)
-  - [📘 systemLog](#-systemlog)
-  - [⚙️ setParameter](#-setparameter)
-- [🧩 Hinweise zur sicheren Konfiguration](#-hinweise-zur-sicheren-konfiguration)
-- [🧩 Init-Skript (`init_mongodb.bat`)](#-init-skript-init_mongodbbat)
-  - [⚙️ Ablauf](#-ablauf)
-  - [🎯 Zweck](#-zweck)
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
----
+Die Vorlage [`mongod.conf`](mongod.conf) betreibt eine einzelne Instanz mit TLS und aktivierter Autorisierung. Für die Einrichtung werden MongoDB Community und separat `mongosh` benötigt: [Installation unter Windows](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/).
 
-## 💾 Hinweise zur Installation unter Windows
+- [Vorbereitung](#vorbereitung)
+- [Administrationskonto bei einer neuen Instanz anlegen](#administrationskonto-bei-einer-neuen-instanz-anlegen)
+- [Regulärer Start und Anmeldung](#regulärer-start-und-anmeldung)
+- [Wirksame Konfiguration prüfen](#wirksame-konfiguration-prüfen)
 
-Installation via **MongoDB Community .msi** vom [Download Center](https://www.mongodb.com/try/download/community?tck=docs_server).  
-Standardpfad der Konfiguration: `<Installationsverzeichnis>\bin\mongod.cfg`
+## Vorbereitung
 
-### 📁 Anlegen des Datenverzeichnisses
+Alle relativen Pfade beziehen sich auf dieses README-Verzeichnis. Vor einer Ersteinrichtung den vorhandenen MongoDB-Dienst geordnet stoppen und sicherstellen, dass kein anderer Prozess dasselbe Datenverzeichnis verwendet. Ein bestehendes Datenverzeichnis nicht neu initialisieren.
+
+Die Konfiguration verwendet `C:\data\mongodb` für Daten und `C:\data\log` für Logs. In PowerShell anlegen und dem späteren Dienstkonto die benötigten Zugriffsrechte geben:
 
 ```powershell
-cd C:\
-md "\data\db"
+New-Item -ItemType Directory -Force C:\data\mongodb, C:\data\log
 ```
 
-### 🚀 MongoDB starten (Beispiel)
+Nach der [TLS-Anleitung](../../../../docs/TLS-de.md) CA-, Server- und Clientzertifikate erstellen und bereitstellen:
+
+| Datei | Inhalt |
+|-------|--------|
+| `C:\data\test-ca.pem` | Öffentliches CA-Zertifikat |
+| `C:\data\mongo-server1.pem` | Serverschlüssel und Serverzertifikat kombiniert |
+| `C:\data\mongo-client.pem` | Clientschlüssel und Clientzertifikat kombiniert |
+
+Der private CA-Schlüssel bleibt außerhalb des Datenbankservers. Die Server-SANs müssen `localhost` beziehungsweise die verwendeten DNS-Namen abdecken. Die Vorlage benötigt auch ein Clientzertifikat; Benutzer-/Passwortauthentifizierung bleibt zusätzlich erforderlich.
+
+Die mitgelieferte Konfiguration bindet ausschließlich an `127.0.0.1` und Port **27018**. Für gewollten Remote-Zugriff Netzwerkfreigaben, TLS-Identitäten und Firewall-Regeln ausdrücklich anpassen.
+
+## Administrationskonto bei einer neuen Instanz anlegen
+
+Die reguläre Konfiguration deaktiviert den Localhost-Authentifizierungs-Bypass. Das erste Administrationskonto muss deshalb vor dem Start mit dieser Konfiguration angelegt werden. Das neue Administrationspasswort wird während der Benutzeranlage zweimal interaktiv abgefragt; im Skript ist kein Passwort hinterlegt.
+
+Für ein neues, noch nicht eingerichtetes Datenverzeichnis einen vorübergehenden Server ausschließlich auf localhost starten. In der ersten PowerShell:
 
 ```powershell
-"C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe" --dbpath="C:\data\db"
+& "C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe" --dbpath C:\data\mongodb --logpath C:\data\log\bootstrap.log --bind_ip 127.0.0.1 --port 27017 --noauth
 ```
 
-Start mit eigener Config:
+In einer zweiten PowerShell im README-Verzeichnis, mit `mongosh` im Suchpfad:
 
 ```powershell
-"C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe" --config "C:\DB\mongod.conf"
+.\init_scripts\init_mongodb.bat --bootstrap
 ```
 
-Weitere Infos: [Offizielle MongoDB-Dokumentation – Installation unter Windows](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/)
+Nach erfolgreicher Benutzeranlage den temporären Server im ersten Fenster mit `Ctrl+C` geordnet beenden. Der temporäre Bootstrap-Port `27017` unterscheidet sich vom regulären Vorlagen-Port `27018`.
 
----
+Das Batch-Skript verbindet sich nur mit der vorbereiteten Instanz und startet oder beendet keine Prozesse. `init_users.js` prüft vor der Benutzeranlage den erwarteten Datenpfad, reine Loopback-Bindung, deaktivierte Autorisierung und das Fehlen vorhandener Administrationsnutzer. Bei abweichenden Pfaden oder Ports `MONGO_BOOTSTRAP_DBPATH` und `MONGO_BOOTSTRAP_PORT` setzen; ohne `--bootstrap` wird der Aufruf abgelehnt. `mongosh` muss im Suchpfad liegen oder über `MONGOSH_EXE` als vollständiger Programmpfad angegeben werden. Fehler führen zu einem Exitcode ungleich null.
 
-## 📑 Beispiel `mongod.conf` (Kurz)
+## Regulärer Start und Anmeldung
+
+In PowerShell aus diesem README-Verzeichnis:
+
+```powershell
+& "C:\Program Files\MongoDB\Server\8.0\bin\mongod.exe" --config .\mongod.conf
+```
+
+Für dauerhaften Dienstbetrieb die Konfiguration beim tatsächlichen Windows-Dienst hinterlegen und mit `sc.exe qc MongoDB` prüfen. Dienst und manuellen Prozess nicht gleichzeitig für dasselbe Datenverzeichnis starten.
+
+In einer zweiten PowerShell:
+
+```powershell
+mongosh --host localhost --port 27018 --tls --tlsCAFile C:\data\test-ca.pem --tlsCertificateKeyFile C:\data\mongo-client.pem --username admin --authenticationDatabase admin --password
+```
+
+Das Passwort wird interaktiv abgefragt. Das Skript erzeugt nur ein Root-Administrationskonto; Anwendungskonten mit begrenzten Rollen separat anlegen.
+
+## Wirksame Konfiguration prüfen
+
+In einer administrativen `mongosh`-Sitzung `db.adminCommand({ getCmdLineOpts: 1 })` sowie `db.runCommand({ connectionStatus: 1 })` prüfen. Datenbanklogs liegen gemäß der Vorlage unter `C:\data\log\mongod.log`.
+
+Die mitgelieferte Datei enthält:
 
 ```yaml
+# System logging
 systemLog:
   destination: file
-  path: "C:\\Program Files\\MongoDB\\Server\\8.0\\log\\mongod.log"
+  path: "C:\\data\\log\\mongod.log"
   logAppend: true
+  verbosity: 0
 
+# Storage options
 storage:
-  dbPath: "C:\\Program Files\\MongoDB\\Server\\8.0\\data"
+  dbPath: "C:\\data\\mongodb"
 
+# Network options
 net:
   bindIp: 127.0.0.1
-  port: 27017
+  port: 27018
+  maxIncomingConnections: 200
   tls:
     mode: requireTLS
-    certificateKeyFile: "C:\\certs\\mongodb\\server.pem"
-    CAFile: "C:\\certs\\mongodb\\ca.pem"
+    certificateKeyFile: "C:\\data\\mongo-server1.pem"
+    CAFile: "C:\\data\\test-ca.pem"
 
+# Security options
 security:
   authorization: enabled
 
+# Parameters
 setParameter:
   enableLocalhostAuthBypass: false
 ```
 
----
-
-## 📑 Parameter-Referenz (Kurz)
-
-### 🔐 security
-
-| Option              | Bedeutung                            | Empfehlung |
-|---------------------|--------------------------------------|------------|
-| `authorization`     | Zugriffskontrolle                    | `enabled` |
-
-### 🌐 net
-
-| Option                   | Beschreibung                      | Empfehlung |
-|--------------------------|-----------------------------------|------------|
-| `bindIp`                 | Bind-Adresse(n)                   | `127.0.0.1` oder VPN-IP, kein offenes `0.0.0.0` |
-| `port`                   | Listener-Port                     | 27017 (Firewall setzen) |
-| `maxIncomingConnections` | Max gleichzeitige Verbindungen    | 200 (default) |
-| `tls.mode`               | TLS-Modus                         | `requireTLS` für Prod |
-| `tls.certificateKeyFile` | Server-Zertifikat + Key           | Pfad zu `.pem` |
-| `tls.CAFile`             | Root-CA                           | Pfad setzen, Validierung aktivieren |
-
-Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfiguration)
-
-### 📦 storage
-
-| Option                                | Bedeutung              | Empfehlung |
-|---------------------------------------|------------------------|------------|
-| `dbPath`                              | Datenverzeichnis       | z. B. `C:\\Program Files\\MongoDB\\Server\\8.0\\data` oder Volume |
-
-### 📘 systemLog
-
-| Option        | Bedeutung                      | Empfehlung |
-|---------------|--------------------------------|------------|
-| `destination` | Ziel für Logs                  | `file` |
-| `path`        | Speicherort                   | z. B. `C:\\Program Files\\MongoDB\\Server\\8.0\\log\\mongod.log` |
-| `logAppend`   | An Log anhängen                | `true` |
-| `verbosity`   | Detailgrad Log-Dateien         | `0` |
-
-### ⚙️ setParameter
-
-| Parameter                   | Bedeutung                                  | Empfehlung |
-|-----------------------------|--------------------------------------------|------------|
-| `enableLocalhostAuthBypass` | Admin-Bypass nur von localhost             | `false` in Prod |
-| `enableTestCommands`        | Nicht-unterstützte Features aktivieren    | `false` in Prod |
-
----
-
-## 🧩 Hinweise zur sicheren Konfiguration
-
-- `authorization: enabled` standardmäßig setzen; danach Admin-User anlegen.  
-- `bindIp` restriktiv (`127.0.0.1` oder VPN); kein öffentliches `0.0.0.0` ohne Schutz.  
-- `tls.mode: requireTLS` mit echten Zertifikaten; CA/Key-Dateien nur für den Dienstbenutzer lesbar.  
-- Bei ReplSets `keyFile` oder x.509 Auth nutzen.  
-- `enableLocalhostAuthBypass: false`, sobald User existieren.  
-- Backups & Restore testen; Journaling aktiv halten.
-
----
-
-## 🧩 Init-Skript (`init_mongodb.bat`)
-
-Dieses Skript automatisiert die **Erstinitialisierung** einer MongoDB-Instanz unter Windows.
-
-### ⚙️ Ablauf
-
-1. Start ohne Auth, um Admin-User anzulegen.  
-2. `init_users.js` ausführen (Benutzer/Rollen).  
-3. Temporären Server beenden.  
-4. Neu starten mit Auth & Konfig (`mongod.conf`).  
-5. Erfolgsmeldung ausgeben.
-
-### 🎯 Zweck
-
-Sichere, reproduzierbare Erstkonfiguration; Benutzer werden nur einmalig ohne Auth erstellt, danach läuft der Server geschützt.
-
----
-
-© 2025 – Sichere Datenbankkonfigurationen
-
+Backups, Aufbewahrung und Restore-Tests sind separat einzurichten. Diese Anleitung beschreibt keine Replikation oder Hochverfügbarkeit.

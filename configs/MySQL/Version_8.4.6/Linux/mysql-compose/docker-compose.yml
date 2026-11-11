@@ -16,8 +16,12 @@ services:
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
       MYSQL_USER: "${MYSQL_USER}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    entrypoint: ["/bin/sh", "/usr/local/bin/prepare-container.sh"]
+    command: ["mysqld"]
+    tmpfs:
+      - /etc/mysql/ssl:mode=0700
     healthcheck:
-      test: ["CMD-SHELL", "mysql -uroot -p$$MYSQL_ROOT_PASSWORD -e 'SELECT 1;' || exit 1"]
+      test: ["CMD-SHELL", "mysql -uroot -p\"$$MYSQL_ROOT_PASSWORD\" -e 'SELECT 1;' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -25,6 +29,14 @@ services:
 
     volumes:
       - mysql_data:/var/lib/mysql
+      - mysql_logs:/var/log/mysql
+      - type: bind
+        source: ./ssl
+        target: /run/tls-source
+        read_only: true
+        bind:
+          create_host_path: false
+      - ./container-entrypoint.sh:/usr/local/bin/prepare-container.sh:ro
       - ./initdb:/docker-entrypoint-initdb.d:ro
       - ../my.cnf:/etc/mysql/conf.d/my.cnf:ro
 
@@ -34,9 +46,20 @@ services:
     restart: unless-stopped
     ports:
       - "127.0.0.1:8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    volumes:
+      - ./adminer-tls.php:/var/www/html/plugins-enabled/tls.php:ro
+      - type: bind
+        source: ./ssl/ca-cert.pem
+        target: /etc/adminer/tls/ca-cert.pem
+        read_only: true
+        bind:
+          create_host_path: false
     depends_on:
       mysql:
         condition: service_healthy
 
 volumes:
+  mysql_logs:
   mysql_data:

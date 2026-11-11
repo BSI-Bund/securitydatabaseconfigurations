@@ -1,9 +1,18 @@
+# MongoDB – Konfigurationen
 
-# <img src="https://www.svgrepo.com/show/331488/mongodb.svg" alt="MongoDB Logo" width="26"/> MongoDB - Konfigurationen
+[English](README.md)
 
-## Versionen
+## Version und Betriebsmodelle
 
-Die Empfehlungen und Konfigurationsdateien sind verfügbar für die Versionen:
-- Version_8 : Major-Version 8 (getestet für 8.0.13) im Standalone-Betrieb
+Konfigurationsstand: **8.x**, Ordner [`Version_8`](Version_8/).
 
-© 2025 – Sichere Datenbankkonfigurationen
+- [Linux mit Docker Compose](Version_8/Linux/README-de.md)
+- [Windows nativ](Version_8/Windows/README-de.md)
+
+Das Compose-Beispiel nutzt den beweglichen Image-Tag `mongo:8-noble`; damit ist keine bestimmte Patchversion festgeschrieben.
+
+## BSI-Alignment
+
+Für **MongoDB** gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../README-de.md#umsetzung-je-datenbank) und die oben verlinkten Anleitungen beschreiben vorhandene Maßnahmen und noch erforderliche Schritte. Datenbankspezifische Hinweise ergänzen die gemeinsame Checkliste.
+
+© 2026 – Sichere Datenbankkonfigurationen

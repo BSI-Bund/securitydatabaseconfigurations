@@ -1,80 +1,63 @@
-# <img src=../weaviate-logo-w.png alt="Weaviate Logo" width="26"/> Weaviate - Konfigurationen (Docker Compose)
+# Weaviate 1.34.0 – Docker Compose
 
-- [🚀 Hinweise zum Start mit Docker Compose Setup](#-hinweise-zum-start-mit-docker-compose-setup)
-  - [⚙️ Services](#-services)
-    - [🧠 weaviate](#-weaviate)
-  - [🧰 Umgebungsvariablen](#-umgebungsvariablen)
-  - [📑 Parameter-Referenz (Kurz)](#-parameter-referenz-kurz)
-  - [📁 Volumes & Mounts](#-volumes--mounts)
-  - [🌐 Ports](#-ports)
-  - [🛡️ Sicherheitshinweise](#-sicherheitshinweise)
-  - [🧊 Container-Härtung (optional, empfohlen)](#-container-härtung-optional-empfohlen)
-- [🧭 TLS & Reverse Proxy](#-tls--reverse-proxy)
-- [🎛️ Start & Verwaltung](#-start--verwaltung)
-- [🧪 Funktionsprüfung (Healthcheck)](#-funktionsprüfung-healthcheck)
+[English](README.md) · [Datenbankübersicht](../README-de.md) · [BSI-Alignment](../../README-de.md#bsi-alignment)
 
----
+Diese Variante stellt eine einzelne Weaviate-Instanz mit lokaler HTTP-API bereit. Die [Traefik-Variante](reverse-proxy-traefik/README-de.md) ist ein eigenständiges Setup mit separatem Daten-Volume. Wegen gleicher Standardports beide Varianten nicht unverändert gleichzeitig starten.
 
-## 🚀 Hinweise zum Start mit Docker Compose Setup
+- [Vorbereitung](#vorbereitung)
+- [Start und wirksame Einstellungen](#start-und-wirksame-einstellungen)
+- [Verbindung prüfen](#verbindung-prüfen)
+- [Parameterreferenz](#parameterreferenz)
+- [Daten und Betrieb](#daten-und-betrieb)
+- [Referenzen](#referenzen)
 
-Dieses Setup stellt eine **Weaviate 1.34.0**-Instanz bereit (Vektor-Datenbank mit REST/GraphQL API).  
-Die Konfiguration erfolgt über:
+## Vorbereitung
+
+Docker mit Compose wird benötigt. Alle Befehle werden in diesem README-Verzeichnis ausgeführt.
 
 ```bash
-docker-compose.yml  # nutzt Werte aus .env
+cp .env.example .env
 ```
 
-> **Sicherheit by Default:** Anonymer Zugriff ist deaktiviert, Zugriff erfolgt via **API-Key**. **RBAC** (rollenbasiert) ist aktiviert.
+In `.env` die Beispiel-API-Keys durch eigene Werte ersetzen. `WEAVIATE_API_KEYS` und `WEAVIATE_API_USERS` werden anhand ihrer Reihenfolge einander zugeordnet. Nur die in `WEAVIATE_ROOT_USERS` genannten Identitäten besitzen automatisch Root-Rechte; für weitere Nutzer passende RBAC-Rollen vergeben.
 
----
+Die Basisvorlage aktiviert in `.env.example` bereits `text2vec-ollama` und `generative-ollama`, enthält jedoch keinen Ollama-Service. Für einen einfachen REST-Test ohne Modellanbindung in `.env` setzen:
 
-### ⚙️ Services
-
-#### 🧠 weaviate
-
-- Verwendet das Image `cr.weaviate.io/semitechnologies/weaviate:${WEAVIATE_VERSION}`  
-- Startet mit `--host 0.0.0.0 --port 8080 --scheme http`  
-- Authentifizierung per **API-Key**, Autorisierung via **RBAC**  
-- Optional können Module wie `text2vec-ollama` & `generative-ollama` aktiviert werden (pro Collection im Client konfigurierbar)
-
----
-
-### 🧰 Umgebungsvariablen
-
-Beispielwerte liegen in `.env` (siehe unten).  
-**Wichtig:** Die Reihenfolge von `WEAVIATE_API_KEYS` und `WEAVIATE_API_USERS` muss **1:1** korrespondieren.
-
-`cp .env.example .env` – anschließend die Werte anpassen.
-
-**.env (Auszug, produktionsnah):**
 ```dotenv
-WEAVIATE_VERSION=1.34.0
-WEAVIATE_HOST=0.0.0.0
-WEAVIATE_PORT=8080
-WEAVIATE_SCHEME=http
-TZ=Europe/Berlin
-
-WEAVIATE_DATA_PATH=/var/lib/weaviate
-WEAVIATE_QUERY_LIMIT=100
-WEAVIATE_CLUSTER_HOSTNAME=node1
-DISABLE_TELEMETRY=true
-QUERY_SLOW_LOG_ENABLED=true
-
-AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED="false"
-AUTHENTICATION_APIKEY_ENABLED="true"
-WEAVIATE_API_KEYS=example-key-12345,another-key-67890
-WEAVIATE_API_USERS=admin,user
-AUTHORIZATION_ENABLE_RBAC="true"
-WEAVIATE_ROOT_USERS=admin
-
-# Optional (nur wenn Module verwendet werden):
-ENABLE_API_BASED_MODULES="true"
-ENABLE_MODULES=text2vec-ollama,generative-ollama
+ENABLE_API_BASED_MODULES=false
+ENABLE_MODULES=
 ```
 
----
+Für eine Modellanbindung stattdessen erreichbare Endpoints und Modelle pro Collection konfigurieren. Die [Traefik-Anleitung](reverse-proxy-traefik/README-de.md) beschreibt eine Variante mit optionalem Ollama-Service.
 
-### 📑 Parameter-Referenz (Kurz)
+## Start und wirksame Einstellungen
+
+```bash
+docker compose config --quiet
+docker compose pull
+docker compose up -d
+docker compose ps
+```
+
+Die [Compose-Datei](docker-compose.yml) verwendet das Image `cr.weaviate.io/semitechnologies/weaviate:${WEAVIATE_VERSION}` und bindet die HTTP-API ausschließlich an `127.0.0.1:${WEAVIATE_PORT}`. Mit den Vorlagenwerten ist das `http://127.0.0.1:8080`. gRPC-Port `50051` ist in dieser Variante nicht veröffentlicht.
+
+Die Vorlage aktiviert API-Key-Authentifizierung und RBAC und deaktiviert anonymen API-Zugriff. Die folgenden Container-Einstellungen sind **bereits gesetzt**: `no-new-privileges`, `cap_drop: [ALL]`, schreibgeschütztes Root-Dateisystem, beschreibbares Daten-Volume, temporäres `/tmp`, Speicherlimit `4g` und CPU-Limit `2.0`. Ressourcen und benötigte Schreibpfade an den Workload anpassen.
+
+Die Verbindung dieser Basisvariante nutzt HTTP. Für Zugriffe über nicht vertrauenswürdige Netze ist eine passende TLS-Anbindung erforderlich; siehe [Traefik](reverse-proxy-traefik/README-de.md). Die gesetzten Härtungsoptionen ersetzen keine Prüfung der gesamten Betriebsumgebung.
+
+## Verbindung prüfen
+
+Compose liest `.env` zur Konfiguration; die Variablen werden dadurch nicht automatisch in die aufrufende Shell exportiert. Die folgenden Befehle verwenden deshalb den konkreten Standardport. Bei geändertem `WEAVIATE_PORT` entsprechend anpassen.
+
+```bash
+curl --fail-with-body http://127.0.0.1:8080/v1/.well-known/ready
+export WEAVIATE_API_KEY='REPLACE_WITH_KEY_FROM_ENV'
+curl --fail-with-body http://127.0.0.1:8080/v1/meta -H "Authorization: Bearer ${WEAVIATE_API_KEY}"
+```
+
+Den Platzhalter durch einen konfigurierten API-Key ersetzen. Der Readiness-Endpunkt prüft die Betriebsbereitschaft und belegt keine funktionierende Authentifizierung. Den authentifizierten API-Aufruf zusätzlich prüfen; bei `401` oder `403` API-Key, Benutzerzuordnung und RBAC-Rechte prüfen.
+
+## Parameterreferenz
 
 | Variable                           | Zweck                                              | Empfehlung |
 |-----------------------------------|----------------------------------------------------|-------------|
@@ -109,163 +92,20 @@ ENABLE_MODULES=text2vec-ollama,generative-ollama
 
 > ℹ️ **Hinweis zu Modulen:** Modell & Endpoint (z. B. Ollama `http://ollama:11434`) werden **pro Collection im Client** gesetzt, nicht via `.env`.
 
----
+## Daten und Betrieb
 
-### 📁 Volumes & Mounts
-
-| Mount                                      | Beschreibung                              |
-|--------------------------------------------|-------------------------------------------|
-| `weaviate_data:/var/lib/weaviate`          | Persistentes Volume für Weaviate-Daten    |
-
-> Backups: Das Volume `weaviate_data` regelmäßig sichern & **Restore testen**.
-
----
-
-### 🌐 Ports
-
-| Port   | Dienst   | Beschreibung                  |
-|--------|----------|-------------------------------|
-| `8080` | Weaviate | REST/GraphQL API (HTTP)       |
-
-> **gRPC (50051)** wird **nicht** exponiert (empfohlen). Nur öffnen, wenn explizit benötigt.
-
----
-
-### 🛡️ Sicherheitshinweise
-
-Diese Konfiguration ist **secure-by-default** und entspricht den Grundprinzipien einer gehärteten Bereitstellung:
-
-| Kategorie | Empfehlung |
-|------------|-------------|
-| **Authentifizierung** | API-Key-Authentifizierung aktiv; anonyme Zugriffe sind deaktiviert. |
-| **Autorisierung (RBAC)** | Rollenbasiertes Zugriffskonzept aktiv; nur definierte Root-User mit Vollzugriff. |
-| **Netzwerkzugriff** | Dienst idealerweise nur lokal (127.0.0.1) binden; externer Zugriff ausschließlich über TLS-Proxy. |
-| **API-Keys** | Lange, zufällig generierte Keys (>32 Zeichen) nutzen und regelmäßig rotieren. |
-| **Volumes** | Persistente Daten (`weaviate_data`) regelmäßig sichern und Zugriff beschränken. |
-| **Updates** | Keine `latest`-Images verwenden; immer feste Versionen (z. B. `1.34.0`). |
-| **Module** | Nur benötigte Module aktivieren (`text2vec-ollama`, `generative-ollama` etc.). |
-
-> 💡 Für Produktionsumgebungen wird empfohlen, Weaviate hinter einem Reverse Proxy (z. B. Traefik oder Nginx mit HTTPS) zu betreiben und API-Zugriffe über IP-Allowlists oder VPN zu schützen.
-
----
-
-### 🧊 Container-Härtung (optional, empfohlen)
-
-Die folgenden Einstellungen reduzieren die Angriffsfläche des Containers, ohne die Architektur zu verändern:
-
-| Maßnahme | Zweck |
-|---------|------|
-| `security_opt: no-new-privileges:true` | Verhindert Privilegienerweiterungen im Prozess. |
-| `cap_drop: ["ALL"]` | Entfernt alle Linux-Capabilities (Least Privilege). |
-| `read_only: true` + `tmpfs: /tmp` | Root-Filesystem schreibgeschützt; temporäre Writes über /tmp. |
-| `mem_limit` / `cpus` | Ressourcen begrenzen; schützt vor DoS/Runaway-Queries. |
-
-**Compose-Beispiel (Auszug):**
-```yaml
-security_opt:
-  - no-new-privileges:true
-cap_drop: ["ALL"]
-read_only: true
-tmpfs:
-  - /tmp:size=64m,mode=1777
-mem_limit: "4g"
-cpus: "2.0"
-```
-
-> 💡 Hinweis: Das Daten-Volume (weaviate_data → ${WEAVIATE_DATA_PATH}) bleibt beschreibbar. Falls zusätzliche Schreibpfade nötig sind, gezielt weitere tmpfs-Mounts setzen.
-
----
-
-## 🧭 TLS & Reverse Proxy
-
-Für eine sichere Bereitstellung von Weaviate wird das System hinter einem
-**Traefik Reverse Proxy mit TLS-Termination** betrieben.  
-Das vollständige Setup – inklusive Zertifikaten, Header-Härtung,
-Domain-Konfiguration und API-Key-Absicherung – befindet sich im separaten
-Ordner:
-
-➡️ **[reverse-proxy-traefik](./reverse-proxy-traefik)**
-
-Dort ist die komplette, gehärtete Konfiguration dokumentiert:
-
-- TLS (self-signed oder produktiv)
-- sicheres Routing (`websecure`)
-- API-Key-Authentifizierung & RBAC
-- sichere Header (`secure-headers`)
-- Container-Härtung
-- Hostname-basierte Routen für Weaviate & Traefik Dashboard
-- Healthchecks & lokale Bindung (`127.0.0.1`)
-
-Dieses Proxy-Setup schützt die Weaviate-Instanz zuverlässig vor direktem
-externem Zugriff und stellt einen Production-ähnlichen Betrieb sicher.
-
-Im Unterordner **[example-clients-python](./reverse-proxy-traefik/example-clients-python)** sind Python-Client-Beispiele zum Zugriff auf die Datenbank enthalten.
-
----
-
-
-## 🎛️ Start & Verwaltung
-
-### ▶️ Starten
+`weaviate_data` wird an `${WEAVIATE_DATA_PATH}` gemountet, standardmäßig `/var/lib/weaviate`. Das Volume ist persistent, aber kein Backup. Ein konsistentes Sicherungsverfahren und Restore-Tests für die eigene Umgebung einrichten.
 
 ```bash
-# einmalig: .env bereitstellen/prüfen
-docker compose --env-file .env pull
-docker compose --env-file .env up -d
+docker compose logs --tail 100 weaviate
+docker compose stop
+docker compose start
+docker compose down
 ```
 
-### ⏹️ Stoppen
+`down` erhält das Daten-Volume. Änderungen an `.env` mit `docker compose up -d` übernehmen und danach die wirksamen Einstellungen prüfen.
 
-```bash
-docker compose --env-file .env down
-```
+## Referenzen
 
-### 🧾 Logs anzeigen
-
-```bash
-docker compose --env-file .env logs -f weaviate
-```
-
-### 🧹 Daten entfernen (optional)
-
-```bash
-# Achtung: löscht persistente Daten
-docker volume rm <projektname>_weaviate_data
-```
-
----
-
-## 🧪 Funktionsprüfung (Healthcheck)
-
-**Readiness-Endpoint abrufen (mit API-Key):**
-```bash
-curl -i "http://localhost:${WEAVIATE_PORT}/v1/.well-known/ready"   -H "x-api-key: example-key-12345"
-```
-
-- Erwartet: `HTTP/1.1 200 OK`  
-- Bei `401/403`: API-Key oder Reihenfolge Keys↔Users in `.env` prüfen.
-
-**Hinweis zu Modulen (optional):**  
-Wenn `ENABLE_MODULES` gesetzt ist (z. B. `text2vec-ollama,generative-ollama`), werden **Endpunkt & Modell** pro **Collection** im Client festgelegt, z. B.:
-
-```python
-from weaviate.classes.config import Configure
-# ...
-client.collections.create(
-  name="Docs",
-  vector_config=[Configure.Vectors.text2vec_ollama(
-    name="textvec",
-    source_properties=["title","content"],
-    api_endpoint="http://ollama:11434",
-    model="nomic-embed-text"
-  )],
-  generative_config=Configure.Generative.ollama(
-    api_endpoint="http://ollama:11434",
-    model="llama3.2"
-  ),
-)
-```
-
----
-
-© 2025 – Sichere Datenbankkonfigurationen
+- [Weaviate: Authentifizierung und Bearer-Header](https://docs.weaviate.io/deploy/configuration/authentication)
+- [Gemeinsame TLS-Anleitung](../../../docs/TLS-de.md)

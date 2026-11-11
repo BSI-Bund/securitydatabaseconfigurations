@@ -1,9 +1,7 @@
-# TLS Certificate Directory
+# TLS certificate directory
 
-Generated TLS files belong here:
+[Deutsch](README-de.md) · [Linux guide](../../README.md)
 
-- `ca.crt`
-- `server.crt`
-- `server.key`
+The TLS override expects `ca.crt`, `server.crt`, and `server.key` here. From the `postgres-compose/` directory, run `./scripts/generate-local-tls.sh` for a local test.
 
-Do not commit private keys or generated certificates. Use `../scripts/generate-local-tls.sh` for local testing, then replace the files with certificates from your own CA for production-style deployments.
+Do not commit generated files or private keys. Use certificates from your own CA for other environments and restrict access to `server.key`. Certificate generation alone does not activate the TLS Compose override.

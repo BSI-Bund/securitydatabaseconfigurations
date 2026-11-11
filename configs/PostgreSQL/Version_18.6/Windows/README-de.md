@@ -1,16 +1,21 @@
-# <img src="https://www.vectorlogo.zone/logos/postgresql/postgresql-icon.svg" alt="PostgreSQL Logo" width="26"/> PostgreSQL - Windows
+# PostgreSQL - Windows
+
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
 - [Sicherheitsstatus](#sicherheitsstatus)
 - [Installationshinweise](#installationshinweise)
 - [TLS-Modus](#tls-modus)
 - [Rollen und Login](#rollen-und-login)
 - [Parameterreferenz](#parameterreferenz)
+  - [Netzwerk und Authentifizierung](#netzwerk-und-authentifizierung)
+  - [TLS](#tls)
+  - [Speicher und Dauerhaftigkeit](#speicher-und-dauerhaftigkeit)
+  - [Logging und Diagnose](#logging-und-diagnose)
+  - [Laufzeitlimits](#laufzeitlimits)
 - [Init-Skript](#init-skript)
 - [Windows-Befehle](#windows-befehle)
 - [BSI-Alignment](#bsi-alignment)
 - [Referenzen](#referenzen)
-
----
 
 ## Sicherheitsstatus
 
@@ -19,6 +24,8 @@ Dies ist eine sichere Baseline, aber keine Produktionsgarantie. Genutzt werden l
 `postgres` ist die Bootstrap-/Wartungsrolle mit Superuser-Rechten. Für normalen Zugriff sind die Beispielrollen `app_admin` und `app_reader` vorgesehen.
 
 Vor produktiver Nutzung: Beispielpasswörter ersetzen, TLS vor Remote-Zugriff aktivieren, Datei-ACLs beschränken, Backups konfigurieren, Restore testen und Windows-Firewall/Service-Rechte prüfen. Keine Beispielkonfiguration kann alle Sicherheitsanforderungen jeder Umgebung vollständig abdecken; Secret-Management, Verschlüsselung ruhender Daten, OS-Hardening, Firewall-Regeln, Patch-Management und Anwendungsschutz bleiben Teil des Deployments.
+
+Backup-Zeitplanung, Verschlüsselung, externe Ablage, Aufbewahrung und Restore-Tests sind für Windows separat einzurichten; die Linux-Compose-Hilfsskripte gehören nicht zu diesem Setup. Für Point-in-Time-Recovery zusätzlich WAL-Archivierung planen. PostgreSQL-, Host- und Plattform-Updates verfolgen sowie Logumfang, Weiterleitung und Aufbewahrung festlegen.
 
 ---
 
@@ -42,6 +49,8 @@ data_directory = 'C:/Program Files/PostgreSQL/18/data'
 hba_file = 'C:/Program Files/PostgreSQL/18/data/pg_hba.conf'
 ```
 
+Vor dem Start die Pfade in `postgresql.conf` und `pg_hba.conf` anpassen und die Dateien an den vom Dienst verwendeten Konfigurationsort kopieren.
+
 Windows-Service starten:
 
 ```powershell
@@ -51,7 +60,15 @@ net start postgresql-x64-18
 PostgreSQL-Client öffnen:
 
 ```powershell
-"C:\Program Files\PostgreSQL\18\bin\psql.exe" -U app_admin -d appdb
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d postgres
+```
+
+Nach dem Start in einer administrativen Sitzung mit `SHOW config_file;` und `SHOW hba_file;` prüfen, welche Dateien tatsächlich aktiv sind.
+
+Die Beispielrollen existieren erst nach der Initialisierung. Passwörter in [`init_scripts/init_users.sql`](init_scripts/init_users.sql) ersetzen und dann aus diesem README-Verzeichnis ausführen:
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d postgres -v ON_ERROR_STOP=1 -f .\init_scripts\init_users.sql
 ```
 
 ---
@@ -70,10 +87,10 @@ Empfohlener Ablauf unter Windows:
 1. CA-signierte Zertifikate in `C:\postgresql\ssl\` erstellen oder ablegen.
 2. ACLs für `server.key` auf PostgreSQL-Servicekonto und Administratoren beschränken.
 3. `pg_hba-tls.conf` in das Datenverzeichnis kopieren.
-4. PostgreSQL mit `postgresql-tls.conf` starten oder die TLS-Werte in die aktive `postgresql.conf` übernehmen.
+4. Die TLS-Werte einschließlich `hba_file` aus `postgresql-tls.conf` in die aktive `postgresql.conf` übernehmen und den Dienst neu starten. Alternativ den Dienst ausdrücklich mit `config_file=.../postgresql-tls.conf` konfigurieren; das Ablegen der Datei allein aktiviert sie nicht.
 5. Clients mit `sslmode=verify-full` und vertrauenswürdigem CA-Zertifikat verbinden.
 
-Zertifikatserstellung ist auch in der Repository-[README](../../../../README-de.md#-tls-konfiguration) beschrieben.
+Zertifikatserstellung ist auch in der [TLS-Anleitung](../../../../docs/TLS-de.md) beschrieben.
 
 ---
 
@@ -152,7 +169,7 @@ Die Beispielpasswörter in `init_users.sql` müssen vor produktionsnaher Nutzung
 
 ## Init-Skript
 
-`init_postgresql.bat` startet den Service, führt `init_users.sql` aus und gibt ausgewählte Konfigurationspfade aus. Mit Administratorrechten ausführen und `PGPASSWORD` vor der Nutzung ersetzen.
+`init_scripts\init_postgresql.bat` führt die daneben liegende `init_users.sql` gegen den laufenden Dienst aus und zeigt die aktiven Konfigurationspfade. Es startet, stoppt oder konfiguriert keinen Dienst um. Bei Bedarf `POSTGRES_BIN`, `PGHOST`, `PGPORT` und `PGUSER` setzen. Zugangsdaten über die regulären psql-Verfahren bereitstellen; es gibt kein im Batch hinterlegtes Passwort. SQL- und Verbindungsfehler führen zu einem Exitcode ungleich null.
 
 ---
 
@@ -162,19 +179,15 @@ Die Beispielpasswörter in `init_users.sql` müssen vor produktionsnaher Nutzung
 |--------|--------------|
 | `net start postgresql-x64-18` | Startet den PostgreSQL-18-Windows-Service. |
 | `net stop postgresql-x64-18` | Stoppt den PostgreSQL-18-Windows-Service sauber. |
-| `sc qc postgresql-x64-18` | Zeigt die Service-Konfiguration. |
-| `sc query postgresql-x64-18` | Zeigt den Service-Status. |
+| `sc.exe qc postgresql-x64-18` | Zeigt die Service-Konfiguration. |
+| `sc.exe query postgresql-x64-18` | Zeigt den Service-Status. |
 | `tasklist /FI "IMAGENAME eq postgres.exe"` | Prüft, ob PostgreSQL-Prozesse laufen. |
 
 ---
 
 ## BSI-Alignment
 
-Diese Baseline ist an den BSI-Eckpunkten für Datenbanksysteme, dem BSI-Praxisleitfaden für sichere Datenbanksysteme und APP.4.3 ausgerichtet. Abgedeckt sind insbesondere Basishärtung, geregelte Einrichtung, verschlüsselte Datenbankanbindung, Monitoring/Logging und Backup-/Restore-Vorbereitung.
-
-Für produktionsnahe Nutzung sollte die Konfiguration mit Schutzbedarf, Netzwerkfreigaben, Secret-Management, Backup/Restore und den vorhandenen Betriebsprozessen abgeglichen werden.
-
-Siehe [BSI-Alignment-Hinweise](../BSI-Alignment-de.md) für die Checkliste.
+Für dieses Setup gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../../../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../../../README-de.md#umsetzung-je-datenbank) beschreibt die Zuordnung für alle DBMS; die konkrete PostgreSQL-Konfiguration und die erforderlichen Betriebsaufgaben stehen in dieser README.
 
 ---
 

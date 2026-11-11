@@ -1,8 +1,16 @@
-# <img src="https://www.vectorlogo.zone/logos/mysql/mysql-icon.svg" alt="MySQL Logo" width="26"/> MySQL Community Server – Configurations
+# MySQL Community Server – Configurations
 
-## Versions
+[Deutsch](README-de.md)
 
-Recommendations and configuration files are available for:  
-- **Version_8.4.6** : Major version 8 (tested with 8.4.6) in standalone mode
+## Version and operating models
 
-© 2025 – Secure database configurations
+Configuration version: **8.4.6**, directory [`Version_8.4.6`](Version_8.4.6/).
+
+- [Linux with Docker Compose](Version_8.4.6/Linux/README.md)
+- [Native Windows](Version_8.4.6/Windows/README.md)
+
+## BSI alignment
+
+**MySQL** follows the [shared BSI alignment for all database templates](../README.md#bsi-alignment). The [central implementation overview](../README.md#implementation-by-database) and the guides above describe existing measures and remaining tasks. Database-specific notes supplement the shared checklist.
+
+© 2026 – Secure database configurations

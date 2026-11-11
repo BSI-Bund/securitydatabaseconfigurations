@@ -1,29 +1,38 @@
-# <img src="https://www.svgrepo.com/show/354272/redis.svg" alt="Redis Logo" width="26"/> Redis Enterprise – Linux (3-Node Cluster)
+# Redis Enterprise – Linux (3-Node Cluster)
 
-- [💾 Installation and Cluster Setup](#-installation-and-cluster-setup)
-- [🧩 Cluster Architecture](#-cluster-architecture)
-  - [🔗 Infrastructure & Nodes](#-infrastructure--nodes)
-  - [📦 Databases](#-databases)
-- [📑 Secure Database Configuration](#-secure-database-configuration)
-  - [🔐 TLS & Encryption](#-tls--encryption)
-  - [🌐 Network & Ports](#-network--ports)
-  - [👥 User Management](#-user-management)
-  - [📘 Logging](#-logging)
-  - [♻️ Persistence, Backups, and Restore](#-persistence-backups-and-restore)
-  - [⚡ High Availability (HA)](#-high-availability-ha)
-  - [🧩 Summary of Secure Configuration](#-summary-of-secure-configuration)
-- [🎛️ Management & CLI Commands](#-management--cli-commands)
+[Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI alignment](../../../README.md#bsi-alignment)
 
----
+This guide describes a native Redis Enterprise installation on three Linux nodes. It contains no Compose file or single `redis.conf` to apply. Select the package version, supported OS, license, DNS, and network rules in advance. Databases and placement diagrams are examples, not an automatically created topology.
 
-## 💾 Installation and Cluster Setup
+- [Installation and Cluster Setup](#installation-and-cluster-setup)
+- [Cluster Architecture](#cluster-architecture)
+  - [Infrastructure & Nodes](#infrastructure--nodes)
+  - [Databases](#databases)
+- [Secure Database Configuration](#secure-database-configuration)
+  - [TLS & Encryption](#tls--encryption)
+  - [Network & Ports](#network--ports)
+  - [User Management](#user-management)
+  - [Logging](#logging)
+  - [Persistence, Backups, and Restore](#persistence-backups-and-restore)
+  - [High Availability (HA)](#high-availability-ha)
+  - [Summary of Secure Configuration](#summary-of-secure-configuration)
+- [Management & CLI Commands](#management--cli-commands)
+  - [Checking Cluster Status](#checking-cluster-status)
+  - [Display Extended Overall Cluster Status](#display-extended-overall-cluster-status)
+  - [Detailed Cluster Tuning Parameters](#detailed-cluster-tuning-parameters)
+  - [Retrieve Node Overview](#retrieve-node-overview)
+  - [Perform Cluster Validation](#perform-cluster-validation)
+  - [Display Database Information](#display-database-information)
+- [References](#references)
+
+## Installation and Cluster Setup
 
 **Installation:**
 
-1. Download the latest version from https://redis.io/de/downloads/
+1. Select a Redis Enterprise package matching the 8.0.x configuration baseline from the [vendor downloads](https://redis.io/downloads/) and check platform requirements.
 2. Extract the file using `tar -xvf [filename].tar`
 3. Start the installation with `sudo ./install.sh` and follow the instructions
-4. After successful installation, the Management UI should be accessible via `https://localhost:8443`
+4. After successful installation, the Management UI should be accessible via `https://<node-hostname>:8443`
 
 **Cluster Setup:**
 
@@ -38,19 +47,20 @@
 > **HA Foundation:** Before creating production databases, distribute the three nodes across **three separate racks or Availability Zones**. Then activate Rack-Zone Awareness. This allows primary and replica shards to be placed across separate fault domains.
 
 **Further Steps:**
+
 - Add nodes to the cluster
 - Create databases
-- For additional configurations, see [📑 Secure Database Configuration](#-secure-database-configuration)
+- For additional configurations, see [📑 Secure Database Configuration](#secure-database-configuration)
 
 ---
 
-## 🧩 Cluster Architecture
+## Cluster Architecture
 
 Example cluster setup with 3 nodes and 3 databases.
 
 **3-Node Redis Enterprise Cluster** (Version `8.0.10`)
 
-### 🔗 Infrastructure & Nodes
+### Infrastructure & Nodes
 
 ```mermaid
 flowchart
@@ -58,12 +68,12 @@ flowchart
     A --> C
     A --> D
     A["🗄️ Cluster"]
-    B["🔴 Node 1<br>(Primary)"]
-    C["⚪ Node 2<br>(Secondary)"]
-    D["⚪ Node 3<br>(Secondary)"]
+    B["🔴 Node 1"]
+    C["⚪ Node 2"]
+    D["⚪ Node 3"]
 ```
 
-### 📦 Databases
+### Databases
 
 1. `db:1` (`testdb`)
 2. `db:2` (`rdi-database`)
@@ -77,7 +87,7 @@ Redis Enterprise automatically schedules and distributes shards based on databas
 flowchart TB
     subgraph NODE1 ["🖥️ Node 1"]
         direction TB
-        S1["🔴 Master<br>📦 db:1 (testdb)"]
+        S1["🔴 Primary<br>📦 db:1 (testdb)"]
     end
 
     subgraph DB-Server ["🖥️ DB-Server"]
@@ -87,15 +97,15 @@ flowchart TB
 
     subgraph NODE2 ["🖥️ Node 2"]
         direction TB
-        S2["⚪ Slave<br>📦 db:1 (testdb)"]
-        S4["🔴 Master<br>📦 db:2 (rdi-database)"]
-        S6["🔴 Master<br>📦 db:3 (load-test)"]
+        S2["⚪ Replica<br>📦 db:1 (testdb)"]
+        S4["🔴 Primary<br>📦 db:2 (rdi-database)"]
+        S6["🔴 Primary<br>📦 db:3 (load-test)"]
     end
 
     subgraph NODE3 ["🖥️ Node 3"]
         direction TB
-        S5["⚪ Slave<br>📦 db:2 (rdi-database)"]
-        S7["⚪ Slave<br>📦 db:3 (load-test)"]
+        S5["⚪ Replica<br>📦 db:2 (rdi-database)"]
+        S7["⚪ Replica<br>📦 db:3 (load-test)"]
     end
 
     %% Replication relationships (Master to Replica)
@@ -108,7 +118,7 @@ flowchart TB
     classDef master fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
     classDef replica fill:#f1faee,stroke:#1d3557,stroke-width:1px,color:#000;
     classDef nodeBox fill:#f8f9fa,stroke:#333,stroke-width:2px,font-weight:bold;
-    
+
     class S1,S4,S6 master;
     class S2,S5,S7 replica;
     class NODE1,NODE2,NODE3 nodeBox;
@@ -116,9 +126,10 @@ flowchart TB
 
 ---
 
-## 📑 Secure Database Configuration
+## Secure Database Configuration
 
 Various configurations for Redis are stored in configuration files. Depending on the installation, these can be located in the following directories:
+
 - `/opt/redislabs`
 - `/var/opt/redislabs`
 - `/etc/opt/redislabs`
@@ -128,6 +139,7 @@ Various configurations for Redis are stored in configuration files. Depending on
 > Unlike open-source Redis, there is no single central `redis.conf` controlling all parameters. On each node, there is a configuration file (e.g. redis-2.conf) in which parts of the configuration are stored.
 
 Generally, the configuration is structured hierarchically:
+
 1. **Cluster Level:** Global parameters and cluster state.
 2. **Database Level:** Each database has dedicated settings delivered to shards via proxies.
 
@@ -135,7 +147,7 @@ Using the Web UI for configuration is recommended.
 
 ---
 
-### 🔐 TLS & Encryption
+### TLS & Encryption
 
 It is recommended to enable TLS for all data transfer.
 
@@ -154,9 +166,9 @@ It is recommended to enable TLS for all data transfer.
 
 ---
 
-### 🌐 Network & Ports
+### Network & Ports
 
-The following ports must be restrictively secured via firewalls on Linux systems:
+The table shows selected endpoints, not a complete firewall allowlist. Check additional cluster, replication, and administration ports against the [vendor port list](https://redis.io/docs/latest/operate/rs/networking/port-configurations/) for the selected version. Restrict every rule to required sources and destinations:
 
 **WebUI Port:**
 
@@ -173,13 +185,14 @@ The following ports must be restrictively secured via firewalls on Linux systems
 
 ---
 
-### 👥 User Management
+### User Management
 
 Implementing a role-based access control (RBAC) model following the Principle of Least Privilege is recommended.
 
 #### Implementing Role-Based Access Control
 
 Creating Roles and Users:
+
 1. Create ACLs (Access Control Lists).
 2. Create roles and assign respective ACLs.
 3. Create users and assign the respective role.
@@ -189,11 +202,13 @@ Creating Roles and Users:
 #### Implementation in Management UI
 
 Create ACLs and Users:
+
 1. Select "Access Control"
 2. Select "Roles" to create ACLs and roles
 3. Select "Users" to create users
 
 Assigning an ACL to a Database:
+
 1. Select "Databases"
 2. Choose the database
 3. Select "Security"
@@ -202,11 +217,11 @@ Assigning an ACL to a Database:
 
 ---
 
-### 📘 Logging
+### Logging
 
 #### Cluster Logging
 
-All management and cluster actions in Redis Enterprise are audited and logged.
+Cluster and management events are recorded in the relevant event logs. Check the required action coverage and detail against the chosen version and audit configuration; this guide does not assume a complete log of all database commands.
 
 ##### Viewing Logs in Management UI
 
@@ -216,8 +231,9 @@ All management and cluster actions in Redis Enterprise are audited and logged.
 ##### Retrieving Logs via CLI
 
 Logs are located by default in `/var/opt/redislabs/log`. The key files are:
+
 * `event_log.log`: Central cluster and management events.
-* `redis/redis-<db_id>.log`: Specific runtime logs for individual Redis shards (engine level).
+* `redis/`: Redis shard runtime logs; inspect actual filenames and IDs on each node.
 
 #### Database Logging
 
@@ -238,9 +254,10 @@ It is recommended to enable native Syslog forwarding. All cluster events and adm
 
 ---
 
-### ♻️ Persistence, Backups, and Restore
+### Persistence, Backups, and Restore
 
 Persistence and periodic backups are distinct protection mechanisms:
+
 - **Persistence** (AOF or snapshots/RDB) protects against process and node failures.
 - **Periodic Backups** enable recovery after more severe errors or data corruption.
 
@@ -256,10 +273,10 @@ For every production database, define and document the backup target, retention 
 
 ---
 
-### ⚡ High Availability (HA)
+### High Availability (HA)
 
-Redis Enterprise High Availability is based on an automated primary-replica shard architecture. 
-High Availability is enabled by default. If a primary shard fails, its replica is automatically promoted to primary. "Replica high availability" additionally helps recreate lost replicas after a node failure.
+Redis Enterprise High Availability is based on an automated primary-replica shard architecture.
+Explicitly check and enable replication and replica HA for each database. With replication enabled, a replica can be promoted after a primary failure. "Replica high availability" additionally helps recreate lost replicas after a node failure.
 
 #### Checking/Enabling High Availability
 
@@ -271,43 +288,48 @@ High Availability is enabled by default. If a primary shard fails, its replica i
 
 ---
 
-### 🧩 Summary of Secure Configuration
+### Summary of Secure Configuration
 
-* **Enable Transport Encryption (TLS):** TTLS should be enabled for all databases, as otherwise unencrypted data could be read in plain text on the internal network.
+* **Enable Transport Encryption (TLS):** TLS should be enabled for all databases, as otherwise unencrypted data could be read in plain text on the internal network.
 * **Apply Restrictive Firewall Rules:** Critical management ports (e.g. `8443`) should only be opened for admin IP addresses. As a general rule, firewall rules should be used to monitor access to the various ports on the nodes.
 * **Implement Role-Based Access Control (RBAC):** Each database must only be accessible to designated users. These users should be restricted to the necessary commands via ACL roles.
 * **Set Up Log Centralization via Syslog:** Forward all cluster and audit events to a central SIEM system.
 * **Configure Backups:** Ensure cyclic backups to external storage for every database.
-* **Enable High Availability:** Enable replication for all production databases to eliminate Single Points of Failure.
+* **Enable High Availability:** Enable replication for all production databases and verify fault tolerance, including placement and available resources.
 * **Avoid Manual File Edits:** Manage configurations dynamically via WebUI, `rladmin`, or REST API rather than editing configuration files directly.
 * **Inter-Node Encryption:** Secure communication between nodes using TLS.
 
 ---
 
-## 🎛️ Management & CLI Commands
+## Management & CLI Commands
 
 ### Checking Cluster Status
+
 ```bash
 rladmin status
 ```
 
 ### Display Extended Overall Cluster Status
-To view deeper metrics on shard migrations, replication lag, and resource utilization:
+
+Shows additional status and topology information; it is not a complete measurement of replication lag or migration progress:
+
 ```bash
 rladmin status extra all
 ```
 
 ### Detailed Cluster Tuning Parameters
+
 ```bash
 rladmin info cluster
 ```
 
 ### Retrieve Node Overview
+
 ```bash
 rladmin info node
 ```
 
-### 🔍 Perform Cluster Validation
+### Perform Cluster Validation
 
 Redis Enterprise’s built-in validation tools can be used to check the status of the cluster:
 
@@ -317,27 +339,35 @@ rladmin verify rack_aware
 rlcheck
 ```
 
-### 🔐 Display Database Information
+### Display Database Information
+
 To establish an encrypted connection using specific ACL users and query database info:
 
 ```bash
 redis-cli \
   -h <FQDN> \
-  -p <Port-Number> \
+  -p <PORT> \
   --tls \
-  --cacert /etc/opt/redislabs/proxy_cert.pem \
-  --user <Username> \
+  --cacert /path/to/trusted-ca.pem \
+  --user <USER> \
   --askpass
 ```
 
 Alternatively, you can supply the password via the `REDISCLI_AUTH` environment variable.
 
-After establishing a connection:
+Replace hostname, port, CA path, and ACL user with actual values. The user needs appropriate read permissions for `INFO` and `SLOWLOG`. After establishing a connection:
+
 ```redis
 INFO
-CONFIG GET slowlog-log-slower-than
+SLOWLOG LEN
 ```
 
 ---
+
+## References
+
+- [Redis: rladmin status](https://redis.io/docs/latest/operate/rs/references/cli-utilities/rladmin/status/)
+- [Redis: rladmin info](https://redis.io/docs/latest/operate/rs/references/cli-utilities/rladmin/info/)
+- [Redis: Replica HA](https://redis.io/docs/latest/operate/rs/databases/configure/replica-ha/)
 
 © 2026 – Secure Database Configurations

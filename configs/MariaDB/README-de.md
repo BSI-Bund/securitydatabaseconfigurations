@@ -1,11 +1,16 @@
+# MariaDB – Konfigurationen
 
-# <img src="https://cdn.worldvectorlogo.com/logos/mariadb.svg" alt="MariaDB Logo" width="26"/> MariaDB – Konfigurationen
+[English](README.md)
 
-## Versionen
+## Version und Betriebsmodelle
 
-Die Empfehlungen und Konfigurationsdateien sind verfügbar für die Versionen:  
-- **Version_11** : Major-Version 11 (getestet für 11.8 LTS) im Standalone-Betrieb
+Konfigurationsstand: **11.8**, Ordner [`Version_11`](Version_11/).
 
-*Bald verfügbar: Version 12 (12.3)*
+- [Linux mit Docker Compose](Version_11/Linux/README-de.md)
+- [Windows nativ](Version_11/Windows/README-de.md)
 
-© 2025 – Sichere Datenbankkonfigurationen
+## BSI-Alignment
+
+Für **MariaDB** gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../README-de.md#umsetzung-je-datenbank) und die oben verlinkten Anleitungen beschreiben vorhandene Maßnahmen und noch erforderliche Schritte. Datenbankspezifische Hinweise ergänzen die gemeinsame Checkliste.
+
+© 2026 – Sichere Datenbankkonfigurationen

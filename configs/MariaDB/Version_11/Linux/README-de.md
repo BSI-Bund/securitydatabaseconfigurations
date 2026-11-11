@@ -1,84 +1,96 @@
-# <img src="https://cdn.worldvectorlogo.com/logos/mariadb.svg" alt="MariaDB Logo" width="26"/> MariaDB – Linux (Docker Compose)
+# MariaDB – Linux mit Docker Compose
 
-- [🚀 Hinweise zum Start mit Docker Compose Setup](#-hinweise-zum-start-mit-docker-compose-setup)
-  - [⚙️ Services](#-services)
-    - [🗄️ mariadb](#-mariadb)
-    - [🧰 adminer](#-adminer)
-  - [🧾 Umgebungsvariablen](#-umgebungsvariablen)
-- [📑 Parameter-Referenz (Kurz)](#-parameter-referenz-kurz)
-    - [🔒 Sicherheit & Netzwerk](#-sicherheit--netzwerk)
-    - [🔐 TLS/SSL](#-tlsssl)
-    - [💾 Speicher & Performance](#-speicher--performance)
-    - [🌐 Zeichensätze](#-zeichensätze)
-    - [📊 Protokollierung](#-protokollierung)
-    - [🔁 Binärlog](#-binärlog)
-    - [📦 mysqldump](#-mysqldump)
-  - [🧩 Hinweise zur sicheren Konfiguration](#-hinweise-zur-sicheren-konfiguration)
-  - [📁 Volumes & Mounts](#-volumes--mounts)
-  - [🌐 Ports](#-ports)
-- [🎛️ Start & Verwaltung](#-start--verwaltung)
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
----
+Diese Vorlage kombiniert **MariaDB 11.8** und Adminer. Die Datenbankkonfiguration liegt in [`mariadb.cnf`](mariadb.cnf), die Compose-Datei in [`mariadb-compose/docker-compose.yml`](mariadb-compose/docker-compose.yml).
 
-## 🚀 Hinweise zum Start mit Docker Compose Setup
+- [Vorbereitung](#vorbereitung)
+- [Start und Anmeldung](#start-und-anmeldung)
+- [Konfiguration prüfen](#konfiguration-prüfen)
+- [Parameterreferenz](#parameterreferenz)
+  - [Sicherheit & Netzwerk](#sicherheit--netzwerk)
+  - [TLS/SSL](#tlsssl)
+  - [Speicher & Performance](#speicher--performance)
+  - [Zeichensätze](#zeichensätze)
+  - [Protokollierung](#protokollierung)
+  - [Binärlog](#binärlog)
+  - [mysqldump](#mysqldump)
+- [Dateien und Betrieb](#dateien-und-betrieb)
+- [Referenzen](#referenzen)
 
-Dieses Setup stellt eine **MariaDB 11.8 Instanz** inklusive **Adminer-Weboberfläche** bereit.  
-Es basiert auf offiziellen Images:
-- [MariaDB auf Docker Hub](https://hub.docker.com/_/mariadb)
-- [Adminer auf Docker Hub](https://hub.docker.com/_/adminer)
+## Vorbereitung
 
-Die Konfiguration erfolgt über:
+Voraussetzungen sind Docker mit Compose und ausreichend Arbeitsspeicher für die konfigurierten Puffer. Die Vorlage setzt `innodb_buffer_pool_size=4G`; diesen Wert vor dem Start an den verfügbaren Speicher anpassen.
 
-```bash
-docker-compose.yml  # nutzt Werte aus .env
-```
-
----
-
-### ⚙️ Services
-
-#### 🗄️ mariadb
-
-- Image `mariadb:11.8`
-- Start mit benutzerdefinierter `my.cnf`
-- Initialisierung über SQL-Skripte in `./initdb/`
-- Persistente Daten im Volume `mariadb_data`
-- Healthcheck prüft Root-Login
-
-#### 🧰 adminer
-
-- Weboberfläche für MariaDB
-- Läuft auf Port **8080**
-- Verbindet sich automatisch mit `mariadb`
-
----
-
-### 🧾 Umgebungsvariablen
-
-Beispielwerte liegen in `mariadb-compose/.env.example`. Vor dem Start kopieren und anpassen:
+Alle folgenden Compose-Befehle werden im Verzeichnis `mariadb-compose/` ausgeführt. Ausgehend von diesem README-Verzeichnis:
 
 ```bash
 cd mariadb-compose
 cp .env.example .env
+mkdir -p ssl
 ```
 
----
+1. In `.env` sämtliche Beispielpasswörter ersetzen und bei Bedarf `DB_PORT` anpassen.
+2. Nach der [TLS-Anleitung](../../../../docs/TLS-de.md) Zertifikate bereitstellen: `ssl/ca-cert.pem`, `ssl/server-cert.pem` und `ssl/server-key.pem`. Die erzeugten Dateien gegebenenfalls passend umbenennen; den privaten CA-Schlüssel nicht kopieren.
+3. Die Zertifikats-SANs müssen `localhost` und den Compose-Servicenamen `mariadb` abdecken, damit sowohl der Host-Client als auch Adminer den Servernamen prüfen können.
+4. Die Mounts sind bereits enthalten. Das Startskript kopiert nur die drei benötigten PEM-Dateien aus dem schreibgeschützten `ssl/` in ein privates tmpfs-Verzeichnis und setzt Eigentümer und Rechte für `mysql`. Der private Schlüssel erhält Modus `0600`; das Logverzeichnis wird im persistenten Volume `mariadb_logs` mit passenden Rechten angelegt.
+5. Das öffentliche CA-Zertifikat `ssl/ca-cert.pem` muss auch für den Adminer-Container lesbar sein, beispielsweise mit Modus `0644`. Die privaten Schlüssel verbleiben zugriffsbeschränkt. Danach die Konfiguration prüfen:
 
-### 📑 Parameter-Referenz (Kurz)
+```bash
+docker compose config --quiet
+```
 
-#### 🔒 Sicherheit & Netzwerk
+TLS ist in `mariadb.cnf` bereits mit expliziten Zertifikatspfaden und `require_secure_transport=ON` konfiguriert. Ohne die vorherige Zertifikatseinbindung ist die Vorlage nicht startfertig.
+
+## Start und Anmeldung
+
+```bash
+docker compose up -d
+docker compose ps
+docker compose logs --tail 100 mariadb
+```
+
+Die Host-Ports sind auf `127.0.0.1` beschränkt: Datenbank `${DB_PORT:-3306}`, Adminer `8080`. `bind_address=0.0.0.0` betrifft die Interfaces **im Container** und wird für Verbindungen aus anderen Containern benötigt.
+
+Die Variablen `MARIADB_USER` und `MARIADB_PASSWORD` legen beim ersten Start ein Anwendungskonto für `MARIADB_DATABASE` an. `MARIADB_ROOT_PASSWORD` gehört zum Administrationskonto. Initialisierungsskripte unter `initdb/` werden nur bei einem leeren Daten-Volume ausgeführt; Änderungen an `.env` ändern keine bestehenden Benutzerpasswörter.
+
+Für eine administrative Prüfung über den lokalen Socket:
+
+```bash
+docker compose exec mariadb mariadb -uroot -p
+```
+
+Adminer ist unter `http://127.0.0.1:8080` erreichbar; `mariadb` ist als Server vorbelegt. Mit dem Anwendungskonto anmelden. Die enthaltene Erweiterung `adminer-tls.php` aktiviert TLS mit CA- und Servernamensprüfung für die Datenbankverbindung. Die lokale Adminer-Weboberfläche selbst verwendet HTTP.
+
+## Konfiguration prüfen
+
+Die Tabellen unten enthalten Empfehlungen; die tatsächlich gesetzten Werte stehen in `mariadb.cnf`. Im DBMS unter anderem `SHOW VARIABLES LIKE 'require_secure_transport';`, `SHOW VARIABLES LIKE 'ssl_ca';` und `SHOW GRANTS;` prüfen. Die Datei `initdb/check_config.sql` enthält weitere lesende Prüfungen und kann aus einer administrativen Sitzung aufgerufen werden.
+
+Für den TLS-Test einen Client mit den oben erzeugten CA-Dateien verwenden und den Zertifikatsnamen prüfen. Ein Socket-Login und ein erfolgreicher Healthcheck belegen keine verschlüsselte TCP-Verbindung.
+
+Für einen TCP-Test vom Host mit installiertem MariaDB-Client im Compose-Verzeichnis ausführen. Port und Konto an `.env` anpassen; der Zertifikats-SAN muss `localhost` enthalten:
+
+```bash
+mariadb --protocol=TCP --host=localhost --port=3306 --user=appuser --password --ssl --ssl-verify-server-cert --ssl-ca=ssl/ca-cert.pem
+```
+
+In dieser Verbindung `SHOW SESSION STATUS LIKE 'Ssl_cipher';` prüfen.
+
+## Parameterreferenz
+
+### Sicherheit & Netzwerk
 
 | Option              | Bedeutung                        | Empfehlung |
 |---------------------|----------------------------------|------------|
-| `bind_address`      | Bind-IP                          | `127.0.0.1` oder VPN-IP (`0.0.0.0` localhost über Docker Compose File)|
+| `bind_address`      | Bind-IP                          | `127.0.0.1` oder VPN-IP (`0.0.0.0` im Container; Host-Port nur auf `127.0.0.1`)|
 | `skip_networking`   | TCP/IP deaktivieren              | `0`; nur `1`, wenn ausschließlich Socket |
 | `skip_name_resolve` | DNS-Lookups vermeiden            | `1` |
 | `max_connections`   | Maximale Clients                 | 100–500 je nach Workload |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`         | `0` (deaktiviert) |
-| `secure_file_priv`  | Ordner für Import/Export         | Dedizierten Pfad setzen oder `NULL` |
+| `secure_file_priv`  | Ordner für Import/Export         | Dediziertes Verzeichnis festlegen; in der Vorlage auskommentiert |
 | `symbolic-links`    | Symlink-Nutzung                  | `0` (deaktiviert) |
 
-#### 🔐 TLS/SSL
+### TLS/SSL
 
 | Option    | Bedeutung            | Empfehlung |
 |-----------|----------------------|------------|
@@ -86,16 +98,13 @@ cp .env.example .env
 | `ssl-cert`| Server-Zertifikat    | z. B. `/etc/mysql/ssl/server-cert.pem` |
 | `ssl-key` | Server-Schlüssel     | z. B. `/etc/mysql/ssl/server-key.pem` |
 
-Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfiguration)
+> TLS-Zwang per SQL: `ALTER USER 'appuser'@'%' REQUIRE SSL;`
 
-
-> TLS-Zwang per SQL: `ALTER USER 'app'@'%' REQUIRE SSL;`
-
-#### 💾 Speicher & Performance
+### Speicher & Performance
 
 | Option                       | Bedeutung                | Empfehlung |
 |------------------------------|--------------------------|------------|
-| `innodb_buffer_pool_size`    | RAM für InnoDB           | 50–80 % RAM |
+| `innodb_buffer_pool_size`    | RAM für InnoDB           | An verfügbaren RAM und Workload anpassen |
 | `innodb_log_file_size`       | Redo-Log-Größe           | 128–512 MB |
 | `innodb_file_per_table`      | Separater Tablespace     | `1` |
 | `innodb_flush_log_at_trx_commit` | Transaktionssicherheit | `1` (ACID), `2` bei Performancebedarf |
@@ -103,14 +112,14 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `aria_pagecache_buffer_size` | Aria-Cache               | ~128 MB (Workload-abhängig) |
 | `aria_log_file_size`         | Aria-Loggröße            | ~64 MB |
 
-#### 🌐 Zeichensätze
+### Zeichensätze
 
 | Option                  | Bedeutung            | Empfehlung |
 |-------------------------|----------------------|------------|
 | `character_set_server`  | Standardzeichensatz  | `utf8mb4` |
 | `collation_server`      | Sortierung           | `utf8mb4_general_ci` |
 
-#### 📊 Protokollierung
+### Protokollierung
 
 | Option                       | Bedeutung                     | Empfehlung |
 |------------------------------|-------------------------------|------------|
@@ -122,7 +131,7 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `general_log`                | Alle Anfragen (Debug)         | `0` in Prod |
 | `general_log_file`           | Pfad für General Query Log     | z.B. `/var/log/mysql/mysql-general.log` |
 
-#### 🔁 Binärlog
+### Binärlog
 
 | Option                  | Bedeutung              | Empfehlung |
 |-------------------------|------------------------|------------|
@@ -133,7 +142,7 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `expire_logs_days`      | Binlog-Aufbewahrung    | 7–14 Tage |
 | `binlog_expire_logs_seconds` | Binlog-Aufbewahrung (neu) | 7–14 Tage (604800–1209600) |
 
-#### 📦 mysqldump
+### mysqldump
 
 | Option            | Bedeutung                   | Empfehlung |
 |-------------------|-----------------------------|------------|
@@ -141,74 +150,30 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `quote-names`     | Sonderzeichen in Backticks  | Aktivieren |
 | `max_allowed_packet` | Paketgröße bei Dumps     | `64M` oder höher |
 
----
+Bei Zertifikatswechseln die Quelldateien in `ssl/` ersetzen und `docker compose restart mariadb` ausführen, damit die geschützten Laufzeitkopien neu erstellt werden. Anschließend die TLS-Verbindung erneut prüfen.
 
-### 🧩 Hinweise zur sicheren Konfiguration
+## Dateien und Betrieb
 
-- Trenne `[client]` und `[mysqld]`; TLS-Optionen in `[mysqld]`.
-- TLS aktivieren, Zertifikate mit Owner `mysql:mysql`, Rechte `0600`; TLS-Zwang via `REQUIRE SSL`.
-- `local_infile=0`, `secure_file_priv` setzen und `symbolic-links=0` für mehr Schutz.
-- Applikations-User mit Minimalrechten; nicht mit `root` arbeiten.
-- Backups & Wiederherstellung testen; Binlog-Aufbewahrung planen.
-- Pfade und Rechte je Distribution/AppArmor/SELinux prüfen.
+| Datei oder Mount | Zweck |
+|-----------------|-------|
+| `../mariadb.cnf:/etc/mysql/conf.d/my.cnf:ro` | Serverkonfiguration |
+| `./initdb:/docker-entrypoint-initdb.d:ro` | Initialisierung beim ersten Start |
+| `mariadb_data:/var/lib/mysql` | Persistente Daten |
+| `./ssl:/run/tls-source:ro` | Zertifikatsquelle; private Laufzeitkopie unter `/etc/mysql/ssl` |
+| `mariadb_logs:/var/log/mysql` | Persistente Datenbanklogs |
 
----
-
-### 📁 Volumes & Mounts
-
-| Mount                                          | Beschreibung                                 |
-|-----------------------------------------------|----------------------------------------------|
-| `mariadb_data:/var/lib/mysql`                  | Persistente Daten                            |
-| `./initdb:/docker-entrypoint-initdb.d:ro`      | Initiale SQL-Skripte (nur beim ersten Start) |
-| `../mariadb.cnf:/etc/mysql/conf.d/my.cnf:ro`   | Eigene Konfiguration                         |
-| `./conf.d/:/etc/mysql/conf.d/:ro` *(optional)* | Zusätzliche Konfigurationen                  |
-
----
-
-### 🌐 Ports
-
-| Port   | Dienst  | Beschreibung     |
-|--------|---------|------------------|
-| `3306` | MariaDB | Datenbankzugriff |
-| `8080` | Adminer | Weboberfläche    |
-
----
-
-## 🎛️ Start & Verwaltung
-
-### ▶️ Starten
+Die Datenbank schreibt Fehler-, Slow-Query- und Binärlogs nach `/var/log/mysql`. `docker compose logs` zeigt die Container-Ausgabe; es ersetzt nicht die Auswertung dieser Dateien.
 
 ```bash
-docker compose up -d
-```
-
-### ⏹️ Stoppen
-
-```bash
+docker compose stop
+docker compose start
 docker compose down
 ```
 
-### 🧾 Logs anzeigen
+`down` entfernt Container und Netzwerk; das Daten-Volume bleibt erhalten. Backups müssen separat geplant, geschützt und durch Restore-Tests geprüft werden. Die Init-Skripte und Binärlogs sind kein vollständiger Backup-Prozess. Bei mehreren Setups die festen Container-Namen und die standardmäßig gleichen Host-Ports anpassen.
 
-```bash
-docker compose logs -f
-```
+## Referenzen
 
-### 🧹 Datenbankvolume entfernen (optional)
-
-```bash
-docker volume rm <projektname>_mariadb_data
-```
-
-### 💻 Zugriff auf die MariaDB-Konsole
-
-```bash
-docker compose exec mariadb mariadb -uroot -p
-```
-
-Oder über Adminer im Browser: [http://localhost:8080](http://localhost:8080)
-
----
-
-© 2025 – Sichere Datenbankkonfigurationen
-
+- [MariaDB Docker-Image](https://hub.docker.com/_/mariadb)
+- [Adminer-Erweiterungen](https://www.adminer.org/en/plugins/)
+- [Gemeinsame TLS-Anleitung](../../../../docs/TLS-de.md)

@@ -1,19 +1,26 @@
-# <img src="https://www.vectorlogo.zone/logos/postgresql/postgresql-icon.svg" alt="PostgreSQL Logo" width="26"/> PostgreSQL - Linux (Docker Compose)
+# PostgreSQL - Linux (Docker Compose)
+
+[Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI-Alignment](../../../README.md#bsi-alignment)
 
 - [Security status](#security-status)
 - [Getting started](#getting-started)
 - [TLS mode](#tls-mode)
 - [Services](#services)
+  - [postgres](#postgres)
+  - [adminer](#adminer)
 - [Adminer login](#adminer-login)
 - [Environment variables](#environment-variables)
 - [Parameter reference](#parameter-reference)
+  - [Network and authentication](#network-and-authentication)
+  - [TLS](#tls)
+  - [Storage and durability](#storage-and-durability)
+  - [Logging and diagnostics](#logging-and-diagnostics)
+  - [Runtime limits](#runtime-limits)
 - [Backup and restore](#backup-and-restore)
 - [BSI alignment](#bsi-alignment)
 - [Volumes and ports](#volumes-and-ports)
 - [Operations](#operations)
 - [References](#references)
-
----
 
 ## Security status
 
@@ -36,6 +43,8 @@ Before production use, replace all example passwords, narrow network ranges, pro
 ---
 
 ## Getting started
+
+The first command block changes from this README directory into `postgres-compose/` once. Run all subsequent shell commands there. Edit `.env` and replace all sample secrets before startup.
 
 This setup provides a PostgreSQL 18.6 instance and an Adminer web UI for local administration.
 It is based on official images:
@@ -60,7 +69,6 @@ PostgreSQL can accept TLS and non-TLS connections on the same port. To require T
 For local testing:
 
 ```bash
-cd postgres-compose
 ./scripts/up-local-tls.sh
 ```
 
@@ -71,7 +79,6 @@ Adminer can still be used in TLS mode. The server stays `postgres`; use `app_adm
 Manual TLS flow:
 
 ```bash
-cd postgres-compose
 ./scripts/generate-local-tls.sh
 docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 ```
@@ -116,7 +123,7 @@ For production-style deployments, replace the generated local CA and server cert
 
 ## Adminer login
 
-Recommended login values for the local example:
+The table shows template values. Use the actual values configured in `.env` when logging in:
 
 | Field | Write access | Read only |
 |-------|--------------|-----------|
@@ -136,7 +143,7 @@ Note: When Adminer shows `postgres` in the header, this is the Compose service/s
 
 Example values live in `postgres-compose/.env.example`. Change all secrets before use:
 
-```bash
+```dotenv
 POSTGRES_VERSION=18.6
 TZ=Europe/Berlin
 DB_PORT=5432
@@ -174,7 +181,7 @@ PGDATA=/var/lib/postgresql/18/docker
 | `ssl_ca_file` | CA certificate | `/etc/postgresql/ssl/ca.crt` |
 | `ssl_min_protocol_version` | Minimum TLS version | `TLSv1.2` or stricter if clients support it |
 
-Certificate generation is also described in the repository [README](../../../../README.md#-tls-configuration).
+Certificate generation is also described in the [TLS guide](../../../../docs/TLS.md).
 
 ### Storage and durability
 
@@ -215,10 +222,11 @@ Certificate generation is also described in the repository [README](../../../../
 
 ## Backup and restore
 
+RPO is the maximum acceptable data loss; RTO is the target recovery time. The restore command below overwrites data in the selected target database. Use an intended test/recovery environment and replace the example with the actual dump filename.
+
 The Compose example includes logical backup helpers:
 
 ```bash
-cd postgres-compose
 ./scripts/backup.sh
 CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
 ```
@@ -231,15 +239,13 @@ CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
 
 This supports a basic backup workflow, but it is not a full recovery concept. Define backup frequency, retention, encryption, off-host storage, restore tests, and RPO/RTO. For point-in-time recovery, add WAL archiving.
 
+`restore.sh` restores only the database dump. In a new target instance, review required roles and global objects and restore them separately from `globals-*.sql` if needed. Verify checksums before restoring; the helpers neither encrypt backups nor configure a schedule.
+
 ---
 
 ## BSI alignment
 
-This baseline is aligned with the BSI key points for database systems, the BSI practical guide for secure database systems, and APP.4.3. It covers baseline hardening, regulated setup, encrypted database connections, monitoring/logging, and backup/restore preparation.
-
-For production-like use, compare the configuration with protection needs, network exposure, secret management, backup/restore, and existing operations processes.
-
-See [BSI alignment notes](../BSI-Alignment.md) for the checklist.
+This setup follows the [shared BSI alignment for all database templates](../../../README.md#bsi-alignment). The [central implementation overview](../../../README.md#implementation-by-database) covers every DBMS; this README describes the PostgreSQL configuration and required operational tasks.
 
 ---
 
@@ -259,6 +265,8 @@ See [BSI alignment notes](../BSI-Alignment.md) for the checklist.
 
 ## Operations
 
+The following `up` command starts the base variant without TLS. Use the startup script below for TLS mode; plain `docker compose up -d` would apply the base definition again. `pg_isready` checks reachability, not successful authentication or TLS hostname verification.
+
 ```bash
 docker compose up -d
 docker compose logs -f
@@ -266,6 +274,8 @@ docker compose exec -e PGPASSWORD='S3cur3P@ss!' postgres psql -U app_admin -d ap
 docker compose exec -e PGPASSWORD='ChangeMe!Root123' postgres psql -U postgres -d appdb -f /docker-entrypoint-initdb.d/check_config.sql
 docker compose down
 ```
+
+Track PostgreSQL, image, host, and platform updates regularly and test upgrades in advance. Define database log scope, forwarding, and retention for your environment.
 
 TLS one-command startup:
 

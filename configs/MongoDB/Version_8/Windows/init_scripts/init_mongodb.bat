@@ -1,31 +1,32 @@
 @echo off
-setlocal
-
-REM === Adjust paths as needed ===
-set MONGO_BIN="C:\Program Files\MongoDB\Server\8.0\bin"
-set MONGO_BIN_SHELL="C:\Program Files\MongoDB\mongosh-2.5.8-win32-x64\bin"
-set CONFIG_FILE=C:\Projekte\MongoDB\Version_8\Windows\mongod.conf   REM adjust
-set DBPATH=C:\data\mongodb
-set LOGPATH=C:\data\log\mongod.log
-set USER_SCRIPT=C:\Projekte\MongoDB\Version_8\Windows\init_users.js REM adjust path
-
-echo [1/5] Starting MongoDB without authentication ...
-start "MongoDBTemp" %MONGO_BIN%\mongod.exe --dbpath="%DBPATH%" --logpath="%LOGPATH%" --bind_ip 127.0.0.1 --port 27017 --noauth
-timeout /t 5 >nul
-
-echo [2/5] Running init users script ...
-%MONGO_BIN_SHELL%\mongosh.exe --port 27017 "%USER_SCRIPT%"
-
-echo [3/5] Stopping temporary MongoDB server ...
-taskkill /IM mongod.exe /F >nul
-
-REM === Authentication must be enabled in the config ===
-REM security:
-REM   authorization: enabled
-
-echo [4/5] Starting MongoDB with authentication ...
-start "MongoDB" %MONGO_BIN%\mongod.exe --config "%CONFIG_FILE%"
-
-echo [5/5] Done! Users created and auth enabled.
-endlocal
-pause
+setlocal DisableDelayedExpansion
+REM Only connect to an operator-started, dedicated localhost bootstrap instance.
+REM No server is started, killed, stopped, or restarted by this script.
+if /I not "%~1"=="--bootstrap" goto usage
+if not defined MONGOSH_EXE set "MONGOSH_EXE=mongosh.exe"
+if not defined MONGO_BOOTSTRAP_PORT set "MONGO_BOOTSTRAP_PORT=27017"
+if not defined MONGO_BOOTSTRAP_DBPATH set "MONGO_BOOTSTRAP_DBPATH=C:\data\mongodb"
+set "MONGO_BOOTSTRAP=1"
+set "USER_SCRIPT=%~dp0init_users.js"
+if not exist "%USER_SCRIPT%" goto missing_script
+if exist "%MONGOSH_EXE%" goto run
+where.exe "%MONGOSH_EXE%" >nul 2>&1
+if errorlevel 1 goto missing_client
+:run
+"%MONGOSH_EXE%" --host 127.0.0.1 --port "%MONGO_BOOTSTRAP_PORT%" --file "%USER_SCRIPT%"
+if errorlevel 1 goto failed
+echo User created. Stop the bootstrap server with Ctrl+C, then start the TLS configuration.
+exit /b 0
+:usage
+echo Usage: init_mongodb.bat --bootstrap 1>&2
+echo First start a new localhost-only bootstrap instance as described in the README. 1>&2
+exit /b 2
+:missing_client
+echo mongosh not found. Add it to PATH or set MONGOSH_EXE to its full path. 1>&2
+exit /b 1
+:missing_script
+echo init_users.js is missing next to this batch file. 1>&2
+exit /b 1
+:failed
+echo User initialization failed. The server has not been stopped or restarted. 1>&2
+exit /b 1

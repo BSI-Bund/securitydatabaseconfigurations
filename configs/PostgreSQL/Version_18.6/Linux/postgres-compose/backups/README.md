@@ -1,5 +1,7 @@
-# Backup Directory
+# Backup directory
 
-Logical backups created by `../scripts/backup.sh` are written here by default.
+[Deutsch](README-de.md) · [Linux guide](../../README.md)
 
-Do not commit backup files. Store backups outside the application host, restrict access, encrypt them according to your policy, and test restores regularly.
+Logical backups are written here by default when `scripts/backup.sh` runs from the `postgres-compose/` directory. The `BACKUP_DIR` variable can change the destination.
+
+Do not commit backup files. Restrict access, encrypt and copy backups to external storage, and test restores. The script creates a database dump, global-object SQL, and checksums; it does not schedule backups, encrypt files, or automatically restore global objects.
