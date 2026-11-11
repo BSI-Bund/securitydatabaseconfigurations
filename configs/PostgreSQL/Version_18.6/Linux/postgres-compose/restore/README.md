@@ -1,5 +1,7 @@
-# Restore Staging Directory
+# Restore staging directory
 
-Use this directory for temporary restore files if needed.
+[Deutsch](README-de.md) · [Linux guide](../../README.md)
 
-Do not commit restore material. Verify checksums before restoring and run restore tests in a separate environment.
+This optional directory can hold temporary restore files. `scripts/restore.sh` accepts the dump path as an argument and does not automatically use this directory.
+
+Do not commit restore material. Verify checksums and test restores in a separate environment. The restore helper overwrites the selected database and requires `CONFIRM_RESTORE` to match its name.

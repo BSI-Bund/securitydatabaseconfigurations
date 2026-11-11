@@ -1,8 +1,18 @@
-# <img src=weaviate-logo-w.png alt="Weaviate Logo" width="26"/> Weaviate - Konfigurationen
+# Weaviate – Konfigurationen
 
-## Versionen
+[English](README.md)
 
-Empfehlungen und Docker-Compose-Dateien sind verfügbar für:
-- **Version_1.34** (getestet mit 1.34.0)
+## Version und Betriebsmodelle
 
-© 2025 – Sichere Datenbankkonfigurationen
+Konfigurationsstand: **1.34.0**, Ordner [`Version_1.34`](Version_1.34/).
+
+- [Docker Compose, lokale HTTP-API](Version_1.34/README-de.md)
+- [Docker Compose mit Traefik und TLS](Version_1.34/reverse-proxy-traefik/README-de.md)
+
+Die beiden Varianten sind eigenständige Setups mit getrennten Daten-Volumes. Für gleichzeitigen Betrieb müssen die standardmäßig gleichen Host-Ports angepasst werden.
+
+## BSI-Alignment
+
+Für **Weaviate** gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../README-de.md#umsetzung-je-datenbank) und die oben verlinkten Anleitungen beschreiben vorhandene Maßnahmen und noch erforderliche Schritte. Datenbankspezifische Hinweise ergänzen die gemeinsame Checkliste.
+
+© 2026 – Sichere Datenbankkonfigurationen

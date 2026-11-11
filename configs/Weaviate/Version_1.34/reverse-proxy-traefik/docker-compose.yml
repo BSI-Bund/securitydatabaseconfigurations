@@ -25,7 +25,7 @@ services:
 
     ports:
       - "127.0.0.1:${WEAVIATE_PORT}:${WEAVIATE_PORT}"
-      - "127.0.0.1:${WEAVIATE_GRPC_PORT:-50051}:${WEAVIATE_GRPC_PORT:-50051}"
+      - "127.0.0.1:${WEAVIATE_GRPC_PORT:-50051}:50051"
 
     volumes:
       - weaviate_data_proxy:${WEAVIATE_DATA_PATH}
@@ -49,16 +49,11 @@ services:
     networks:
       - proxy
 
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.weav.rule=Host(`${WEAVIATE_DOMAIN}`)
-      - traefik.http.routers.weav.entrypoints=websecure
-      - traefik.http.routers.weav.tls=true
-      - traefik.http.services.weav.loadbalancer.server.port=${WEAVIATE_PORT}
-      - traefik.http.routers.weav.middlewares=secure-headers@file
-
   traefik:
     image: traefik:v3.5
+    environment:
+      WEAVIATE_DOMAIN: ${WEAVIATE_DOMAIN}
+      WEAVIATE_PORT: ${WEAVIATE_PORT}
     container_name: traefik
     restart: unless-stopped
     command:
@@ -67,35 +62,23 @@ services:
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
 
-      - --providers.docker=true
-      - --providers.docker.network=proxy
-      - --providers.docker.exposedbydefault=false
-
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
 
-      - --api.dashboard=true
+      - --api.dashboard=false
+      - --api.insecure=false
 
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:443:443"
       
 
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./certs:/certs:ro
       - ./dynamic:/etc/traefik/dynamic:ro
 
     networks:
       - proxy
-
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_DOMAIN}`)
-      - traefik.http.routers.traefik.entrypoints=websecure
-      - traefik.http.routers.traefik.tls=true
-      - traefik.http.routers.traefik.service=api@internal
-      - traefik.http.routers.traefik.middlewares=secure-headers@file
 
   ollama:
     image: ollama/ollama:latest
@@ -110,8 +93,7 @@ services:
       - "127.0.0.1:11434:11434"
 
 networks:
-  proxy:
-    name: proxy
+  proxy: {}
 
 volumes:
   weaviate_data_proxy:

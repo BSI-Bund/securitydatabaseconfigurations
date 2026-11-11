@@ -16,19 +16,29 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+    entrypoint: ["/bin/sh", "/usr/local/bin/prepare-container.sh"]
+    tmpfs:
+      - /etc/ssl/mongodb:mode=0700
     command:
+      - 'mongod'
       - '--auth'
       - '--config'
       - '/etc/mongo/mongod.conf'
-      - '-vvv'
     volumes:
       - mongo:/data/db
-      - ../mongod.conf:/etc/mongo/mongod.conf
-      - ./test-ca.pem:/etc/ssl/mongodb/test-ca.pem
-      - ./test-server1.pem:/etc/ssl/mongodb/test-server1.pem
+      - mongo_logs:/var/log/mongodb
+      - ../mongod.conf:/etc/mongo/mongod.conf:ro
+      - ./container-entrypoint.sh:/usr/local/bin/prepare-container.sh:ro
+      - type: bind
+        source: ./ssl
+        target: /run/tls-source
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
       - "127.0.0.1:27017:27017"
 
 volumes:
+  mongo_logs:
   mongo:
   

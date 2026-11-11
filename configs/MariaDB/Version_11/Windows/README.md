@@ -1,79 +1,75 @@
-# <img src="https://cdn.worldvectorlogo.com/logos/mariadb.svg" alt="MariaDB Logo" width="26"/> MariaDB – Windows
+# MariaDB – Windows
 
-- [💾 Windows installation notes](#-windows-installation-notes)
-  - [📁 Create the data directory](#-create-the-data-directory)
-  - [🚀 Start MariaDB (example)](#-start-mariadb-example)
-- [📑 Parameter reference (short)](#-parameter-reference-short)
-  - [🔒 Security & network](#-security--network)
-  - [🔐 TLS/SSL](#-tlsssl)
-  - [💾 Storage & performance](#-storage--performance)
-  - [🌐 Character sets](#-character-sets)
-  - [📊 Logging](#-logging)
-  - [🔁 binary log](#-binary-log)
-  - [📦 mysqldump](#-mysqldump)
-- [🧩 Secure configuration notes](#-secure-configuration-notes)
-- [🧩 MariaDB init script (`init_mariadb.bat`)](#-mariadb-init-script-init_mariadbbat)
-  - [⚙️ Script flow](#️-script-flow)
-  - [🎯 Purpose](#-purpose)
-  - [⚠️ Notes](#️-notes)
-- [🛠️ MariaDB Windows commands](#-mariadb-windows-commands)
-  - [1️⃣ Start and stop the MariaDB service](#1️⃣-start-and-stop-the-mariadb-service)
-  - [2️⃣ Show service information](#2️⃣-show-service-information)
-  - [3️⃣ Check and stop the MariaDB server process](#3️⃣-check-and-stop-the-mariadb-server-process)
-  - [4️⃣ Delete or reinstall the MariaDB service](#4️⃣-delete-or-reinstall-the-mariadb-service)
-  - [🔹 Tips](#-tips)
+[Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI alignment](../../../README.md#bsi-alignment)
 
----
+- [Installation and active configuration](#installation-and-active-configuration)
+- [Login and users](#login-and-users)
+- [Configure TLS](#configure-tls)
+- [Verify the configuration](#verify-the-configuration)
+- [Parameter reference](#parameter-reference)
+  - [Security & network](#security--network)
+  - [TLS/SSL](#tlsssl)
+  - [Storage & performance](#storage--performance)
+  - [Character sets](#character-sets)
+  - [Logging](#logging)
+  - [binary log](#binary-log)
+  - [mysqldump](#mysqldump)
+- [Operations](#operations)
 
-## 💾 Windows installation notes
+## Installation and active configuration
 
-Install via the **MariaDB Community Installer** from:  
-➡️ [https://mariadb.org/download/](https://mariadb.org/download/)
+Use the [MariaDB MSI and installation guide](https://mariadb.com/docs/server/server-management/install-and-upgrade-mariadb/installing-mariadb/installing-mariadb-msi-packages-on-windows). The following paths are examples from the supplied [`my.ini`](my.ini); check the actual installation and service paths.
 
-After installation the default binary path is usually:  
-`C:\Program Files\MariaDB 11.8\bin\`
+| Purpose | Example path |
+|---------|--------------|
+| Binaries | `C:\Program Files\MariaDB 11.8\bin` |
+| Active configuration, to verify in service settings | `C:\Program Files\MariaDB 11.8\data\my.ini` |
+| Initialized data directory | `C:\Program Files\MariaDB 11.8\data` |
+| Template log directory | `C:\Program Files\MariaDB 11.8\data\mysql` |
 
-The config file (`my.ini`) is typically at:  
-`C:\Program Files\MariaDB 11.8\data\my.ini`
+The data directory must already have been initialized during installation. Creating an empty directory does not initialize the DBMS. Do not overwrite an existing data directory through reinitialization.
 
-### 📁 Create the data directory
+1. Determine the actual Windows service name; the examples below use `MariaDB`.
+2. Use `sc.exe qc MariaDB` to check which configuration the service loads. Keeping `my.ini` in the repository does not activate it.
+3. Adapt paths and memory settings in the active configuration. Create the log and any import/export directories; grant the service account the required permissions.
+4. Restart the service and inspect the configured error log.
 
-If you need to create it manually:
-
-```bash
-cd C:\
-md "\data\mariadb"
+```powershell
+sc.exe qc MariaDB
+net stop MariaDB
+net start MariaDB
+sc.exe query MariaDB
 ```
 
-You can set the data directory in `my.ini` via `datadir`, e.g.:
+Service changes require an administrator PowerShell. Do not run a second manually started server against the data directory of a running service.
 
-```ini
-[mysqld]
-datadir=C:\data\mariadb
+## Login and users
+
+Run client commands in a regular PowerShell; the `&` call operator executes the quoted program path.
+
+```powershell
+& "C:\Program Files\MariaDB 11.8\bin\mariadb.exe" --host=127.0.0.1 --user=root --password
 ```
 
-### 🚀 Start MariaDB (example)
+The password is requested interactively. Use administration accounts for setup and maintenance; give applications separate, restricted accounts.
 
-Start MariaDB with a custom data directory:
+First adapt passwords and allowed hosts in [`init_scripts/init_users.sql`](init_scripts/init_users.sql). Run the file in an administrative client session, for example with `SOURCE C:/path/to/repository/configs/MariaDB/Version_11/Windows/init_scripts/init_users.sql;`. It creates `appdb`, `app_admin`, and `app_reader`; it does not initialize an empty data directory.
 
-```bash
-"C:\Program Files\MariaDB 11.8\bin\mysqld.exe" --defaults-file="C:\Program Files\MariaDB 11.8\data\my.ini"
-```
+Alternatively, run `init_scripts\init_mariadb.bat`. It only applies the adjacent `init_users.sql` through the client to the running service; it does not start or stop servers. The administration password is requested interactively. Set `MARIADB_BIN`, `MARIADB_HOST`, `MARIADB_PORT`, and `MARIADB_ADMIN` for non-default installations. Missing files and SQL/connection failures produce a nonzero exit code.
 
-Or interactively via the MariaDB client:
+## Configure TLS
 
-```bash
-"C:\Program Files\MariaDB 11.8\bin\mysql.exe" -u root -p
-```
+Server TLS lines in `my.ini` are commented out. The template therefore does not yet enforce a TLS connection configured by you. Follow the [shared TLS guide](../../../../docs/TLS.md) to create the CA, server certificate, and server key. Store them using the names specified in `ssl-ca`, `ssl-cert`, and `ssl-key`, and enable those server lines in `[mysqld]`. Client certificate options belong in an appropriate client section.
 
-More info:
-➡️ [Official MariaDB docs – Windows installation](https://mariadb.com/kb/en/installing-mariadb-msi-packages-on-windows/)
+Grant the service account read access to the private server key. Then configure the transport requirement (`require_secure_transport=ON` or appropriate account rules) and restart the service. Enable CA and hostname verification on clients. The exact check depends on the MariaDB or MySQL client; `SHOW SESSION STATUS LIKE 'Ssl_cipher';` shows encryption for the current connection.
 
----
+## Verify the configuration
 
-# 📑 Parameter reference (short)
+The following reference contains recommendations. Check effective values with `SHOW VARIABLES`, especially file paths, network binding, TLS, and memory settings. A successful service start alone does not confirm these values.
 
-## 🔒 Security & network
+## Parameter reference
+
+### Security & network
 
 | Option              | Meaning                     | Recommendation |
 |---------------------|-----------------------------|----------------|
@@ -82,10 +78,10 @@ More info:
 | `skip_name_resolve` | Avoid DNS lookups           | `1` |
 | `max_connections`   | Max clients                 | 100–500 depending on workload |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`    | `0` (disable) |
-| `secure_file_priv`  | Import/export directory     | Set dedicated path or `NULL` |
+| `secure_file_priv` | Import/export directory | Set a dedicated directory; commented out in the template |
 | `symbolic-links`    | Symlinks in tables          | `0` (disable) |
 
-## 🔐 TLS/SSL
+### TLS/SSL
 
 | Option    | Meaning           | Recommendation |
 |-----------|-------------------|----------------|
@@ -93,30 +89,28 @@ More info:
 | `ssl-cert`| Server certificate| `C:/mariadb/ssl/server-cert.pem` |
 | `ssl-key` | Server key        | `C:/mariadb/ssl/server-key.pem` |
 
-Creation of TLS certificate, see [README](../../../../README.md#-tls-configuration)
+> Enforce TLS via SQL: `ALTER USER 'app_admin'@'%' REQUIRE SSL;`
 
-> Enforce TLS via SQL: `ALTER USER 'app'@'%' REQUIRE SSL;`
-
-## 💾 Storage & performance
+### Storage & performance
 
 | Option                       | Meaning                  | Recommendation |
 |------------------------------|--------------------------|----------------|
-| `innodb_buffer_pool_size`    | InnoDB buffer            | 50–80% of RAM |
+| `innodb_buffer_pool_size`    | InnoDB buffer            | Tune for available RAM and workload |
 | `innodb_log_file_size`       | Redo log size            | 128–512 MB |
 | `innodb_file_per_table`      | Separate tablespace      | `1` |
 | `innodb_flush_log_at_trx_commit` | Durability vs performance | `1` (ACID), `2` if needed |
-| `innodb_flush_method`        | I/O handling             | `O_DIRECT` recommended |
+| `innodb_flush_method`        | I/O handling             | Do not apply automatically on Windows |
 | `aria_pagecache_buffer_size` | Aria cache               | ~128 MB (workload-dependent) |
 | `aria_log_file_size`         | Aria log size            | ~64 MB |
 
-## 🌐 Character sets
+### Character sets
 
 | Option                  | Meaning            | Recommendation |
 |-------------------------|--------------------|----------------|
 | `character_set_server`  | Default charset    | `utf8mb4` |
 | `collation_server`      | Collation          | `utf8mb4_general_ci` |
 
-## 📊 Logging
+### Logging
 
 | Option                       | Meaning                     | Recommendation |
 |------------------------------|-----------------------------|----------------|
@@ -128,7 +122,7 @@ Creation of TLS certificate, see [README](../../../../README.md#-tls-configurati
 | `general_log`                | All queries (debug)         | `0` in prod |
 | `general_log_file`           | Path for general query log  | e.g. `C:/Program Files/MariaDB 11.8/data/mysql/mysql-general.log` |
 
-## 🔁 binary log
+### binary log
 
 | Option                  | Meaning              | Recommendation |
 |-------------------------|----------------------|----------------|
@@ -139,7 +133,7 @@ Creation of TLS certificate, see [README](../../../../README.md#-tls-configurati
 | `expire_logs_days`      | Binlog retention     | 7–14 days |
 | `binlog_expire_logs_seconds` | Binlog retention (new) | 7–14 days (604800–1209600) |
 
-## 📦 mysqldump
+### mysqldump
 
 | Option            | Meaning                   | Recommendation |
 |-------------------|---------------------------|----------------|
@@ -147,92 +141,6 @@ Creation of TLS certificate, see [README](../../../../README.md#-tls-configurati
 | `quote-names`     | Backtick identifiers      | Enable |
 | `max_allowed_packet` | Packet size for dumps  | `64M` or higher |
 
----
+## Operations
 
-## 🧩 Secure configuration notes
-
-- Separate `[client]` and `[mysqld]`; put TLS options in `[mysqld]`.
-- Certificates owned by the MariaDB service account, restrictive ACLs; enforce TLS via `REQUIRE SSL`.
-- Set `local_infile=0`, `secure_file_priv`, and `symbolic-links=0` for extra safety.
-- Give app users minimal privileges; avoid working as `root`.
-- Test backups and restores; plan binlog retention.
-- Check paths and permissions for your Windows installation.
-
----
-
-## 🧩 MariaDB init script (`init_mariadb.bat`)
-
-This script automates the **first-time initialization of a MariaDB instance on Windows**.  
-It creates users, permissions, and default databases before the service runs normally.
-
-### ⚙️ Script flow
-
-1. Stop the `MariaDB` service to avoid port conflicts.  
-2. Start the service; wait briefly.  
-3. Launch a temporary MariaDB server with the given `my.ini`.  
-4. Execute `init_users.sql` (users/passwords/DB/privileges).  
-5. Shut down the temporary server via `mysqladmin shutdown`.  
-6. Start the service again—initialization complete.
-
-### 🎯 Purpose
-
-- Fast, repeatable, and secure initial configuration  
-- Create users, databases, and permissions before production use
-
-### ⚠️ Notes
-
-- Run the script with administrator rights (service start/stop).  
-- Set `ROOT_PASS` in the script.  
-- Verify `CONFIG_FILE` and `INIT_SQL` paths.
-
----
-
-## 🛠️ MariaDB Windows commands
-
-Commands for managing MariaDB on Windows.
-
-### 1️⃣ Start and stop the MariaDB service
-
-| Command             | Description                                                                 |
-| ------------------- | --------------------------------------------------------------------------- |
-| `net start MariaDB` | Starts the Windows service `MariaDB`; the service then runs in background.  |
-| `net stop MariaDB`  | Stops the Windows service `MariaDB` cleanly.                                |
-
-> ⚠️ Administrator rights required.
-
-### 2️⃣ Show service information
-
-| Command                  | Description                                                                          |
-| -----------------------  | ------------------------------------------------------------------------------------ |
-| `sc qc MariaDB`          | Shows the **service configuration** (install path, start type, parameters).          |
-| `sc query MariaDB`       | Shows the **current service status** (RUNNING, STOPPED, etc.).                       |
-| `sc query type= service \| findstr /I MariaDB` | Filters all services for “MariaDB”, shows relevant lines only. |
-
-### 3️⃣ Check and stop the MariaDB server process
-
-| Command                                   | Description                                                        |
-| ----------------------------------------  | ------------------------------------------------------------------ |
-| `tasklist /FI "IMAGENAME eq mysqld.exe"`  | Checks if the MariaDB server process `mysqld.exe` is running.      |
-| `taskkill /IM mysqld.exe /F`              | Force-stops the MariaDB server process.                            |
-
-> ⚠️ Use only if the service is not in use.
-
-### 4️⃣ Delete or reinstall the MariaDB service
-
-| Command                                                                                                 | Description                                                                              |
-| ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| `sc delete MariaDB`                                                                                    | Removes the registered MariaDB service from Windows. Database files remain.              |
-| `"C:\Program Files\MariaDB 11.8\bin\mysqld.exe" --install MariaDB --defaults-file="C:\Pfad\zu\my.ini"` | Installs a new Windows service `MariaDB` with the given config file.                     |
-
-> ⚠️ Administrator rights required. The path to `my.ini` must be correct.
-
-### 🔹 Tips
-
-- Service vs process: service → `net start/stop`, `sc query/qc`; process → `mysqld.exe`, controlled via `tasklist`/`taskkill`.  
-- Admin rights are required for service actions.  
-- Check logs: e.g., `C:\Program Files\MariaDB 11.8\data\` or configured log directory.  
-- Enable TLS once certificates exist; use `REQUIRE SSL`.  
-- Set `secure_file_priv` to restrict file imports/exports.
-
-© 2025 – Secure database configurations
-
+Set up backups, retention, and restore tests separately. Binary logs support recovery together with a suitable backup; enabling them alone is not a backup. Review logs at the paths in the active `my.ini`. Use `tasklist /FI "IMAGENAME eq mysqld.exe"` for process information; stop the server through its service during normal operation.

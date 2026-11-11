@@ -1,9 +1,17 @@
+# Redis Enterprise – Konfigurationen
 
-# <img src="https://www.svgrepo.com/show/354272/redis.svg" alt="Redis Logo" width="26"/> Redis - Konfigurationen
+[English](README.md)
 
-## Versionen
+## Version und Betriebsmodelle
 
-Die Empfehlungen und Konfigurationsdateien sind verfügbar für die Versionen:
-- Version_8.0.x : Major-Version 8 (getestet für 8.0.10) im Cluster-Betrieb
+Konfigurationsstand: **8.0.x (Beispiel: 8.0.10)**, Ordner [`Version_8.0.x_Enterprise`](Version_8.0.x_Enterprise/).
+
+- [Linux nativ, Cluster mit drei Knoten](Version_8.0.x_Enterprise/Linux/README-de.md)
+
+Diese Anleitung behandelt Redis Enterprise und dessen Verwaltungswerkzeuge. Sie enthält kein Docker-Compose-Setup und keine Konfiguration für Redis Open Source.
+
+## BSI-Alignment
+
+Für **Redis Enterprise** gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../README-de.md#umsetzung-je-datenbank) und die oben verlinkten Anleitungen beschreiben vorhandene Maßnahmen und noch erforderliche Schritte. Datenbankspezifische Hinweise ergänzen die gemeinsame Checkliste.
 
 © 2026 – Sichere Datenbankkonfigurationen

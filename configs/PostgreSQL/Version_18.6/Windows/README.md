@@ -1,16 +1,21 @@
-# <img src="https://www.vectorlogo.zone/logos/postgresql/postgresql-icon.svg" alt="PostgreSQL Logo" width="26"/> PostgreSQL - Windows
+# PostgreSQL - Windows
+
+[Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI-Alignment](../../../README.md#bsi-alignment)
 
 - [Security status](#security-status)
 - [Installation notes](#installation-notes)
 - [TLS mode](#tls-mode)
 - [Roles and login](#roles-and-login)
 - [Parameter reference](#parameter-reference)
+  - [Network and authentication](#network-and-authentication)
+  - [TLS](#tls)
+  - [Storage and durability](#storage-and-durability)
+  - [Logging and diagnostics](#logging-and-diagnostics)
+  - [Runtime limits](#runtime-limits)
 - [Init script](#init-script)
 - [Windows commands](#windows-commands)
 - [BSI alignment](#bsi-alignment)
 - [References](#references)
-
----
 
 ## Security status
 
@@ -19,6 +24,8 @@ This is a secure baseline, not a production guarantee. It uses localhost-only ac
 `postgres` is the bootstrap/maintenance role with superuser privileges. Use the example roles `app_admin` and `app_reader` for normal access.
 
 Before production use, replace all example passwords, enable TLS before remote access, restrict file ACLs, configure backups, test restore, and review Windows firewall/service permissions. No sample config can cover every security requirement of every deployment; secret management, encryption at rest, OS hardening, firewall rules, patch management, and application-layer controls still belong to the deployment.
+
+Configure backup scheduling, encryption, off-host storage, retention, and restore tests separately on Windows; the Linux Compose helpers are not part of this setup. Plan WAL archiving for point-in-time recovery. Track PostgreSQL, host, and platform updates and define log scope, forwarding, and retention.
 
 ---
 
@@ -42,6 +49,8 @@ data_directory = 'C:/Program Files/PostgreSQL/18/data'
 hba_file = 'C:/Program Files/PostgreSQL/18/data/pg_hba.conf'
 ```
 
+Before startup, adapt paths in `postgresql.conf` and `pg_hba.conf` and copy them to the configuration location used by the service.
+
 Start the Windows service:
 
 ```powershell
@@ -51,7 +60,15 @@ net start postgresql-x64-18
 Open the PostgreSQL client:
 
 ```powershell
-"C:\Program Files\PostgreSQL\18\bin\psql.exe" -U app_admin -d appdb
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d postgres
+```
+
+After startup, check `SHOW config_file;` and `SHOW hba_file;` in an administrative session to identify the active files.
+
+Example roles exist only after initialization. Replace passwords in [`init_scripts/init_users.sql`](init_scripts/init_users.sql), then run from this README directory:
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -d postgres -v ON_ERROR_STOP=1 -f .\init_scripts\init_users.sql
 ```
 
 ---
@@ -70,10 +87,10 @@ Recommended Windows flow:
 1. Create or install CA-issued certificates in `C:\postgresql\ssl\`.
 2. Restrict `server.key` ACLs to the PostgreSQL service account and administrators.
 3. Copy `pg_hba-tls.conf` to the data directory.
-4. Start PostgreSQL with `postgresql-tls.conf` or merge its TLS settings into the active `postgresql.conf`.
+4. Merge the TLS settings, including `hba_file`, from `postgresql-tls.conf` into the active `postgresql.conf` and restart the service. Alternatively, explicitly configure the service with `config_file=.../postgresql-tls.conf`; copying the file alone does not activate it.
 5. Connect clients with `sslmode=verify-full` and the trusted CA certificate.
 
-Certificate generation is also described in the repository [README](../../../../README.md#-tls-configuration).
+Certificate generation is also described in the [TLS guide](../../../../docs/TLS.md).
 
 ---
 
@@ -152,7 +169,7 @@ Change the example passwords in `init_users.sql` before production-like use.
 
 ## Init script
 
-`init_postgresql.bat` starts the service, runs `init_users.sql`, and prints selected configuration paths. Run it with administrator rights and replace `PGPASSWORD` before use.
+`init_scripts\init_postgresql.bat` applies the adjacent `init_users.sql` to the running service and shows active configuration paths. It does not start, stop, or reconfigure services. Set `POSTGRES_BIN`, `PGHOST`, `PGPORT`, and `PGUSER` if needed. Supply credentials through normal psql mechanisms; the batch file contains no password. SQL and connection failures return a nonzero exit code.
 
 ---
 
@@ -162,19 +179,15 @@ Change the example passwords in `init_users.sql` before production-like use.
 |---------|-------------|
 | `net start postgresql-x64-18` | Starts the PostgreSQL 18 Windows service. |
 | `net stop postgresql-x64-18` | Stops the PostgreSQL 18 Windows service cleanly. |
-| `sc qc postgresql-x64-18` | Shows service configuration. |
-| `sc query postgresql-x64-18` | Shows service status. |
+| `sc.exe qc postgresql-x64-18` | Shows service configuration. |
+| `sc.exe query postgresql-x64-18` | Shows service status. |
 | `tasklist /FI "IMAGENAME eq postgres.exe"` | Checks whether PostgreSQL processes are running. |
 
 ---
 
 ## BSI alignment
 
-This baseline is aligned with the BSI key points for database systems, the BSI practical guide for secure database systems, and APP.4.3. It covers baseline hardening, regulated setup, encrypted database connections, monitoring/logging, and backup/restore preparation.
-
-For production-like use, compare the configuration with protection needs, network exposure, secret management, backup/restore, and existing operations processes.
-
-See [BSI alignment notes](../BSI-Alignment.md) for the checklist.
+This setup follows the [shared BSI alignment for all database templates](../../../README.md#bsi-alignment). The [central implementation overview](../../../README.md#implementation-by-database) covers every DBMS; this README describes the PostgreSQL configuration and required operational tasks.
 
 ---
 

@@ -1,74 +1,73 @@
-# <img src="https://www.vectorlogo.zone/logos/mysql/mysql-icon.svg" alt="MySQL Logo" width="26"/> MySQL – Windows
+# MySQL – Windows
 
-- [💾 Hinweise zur Installation unter Windows](#-hinweise-zur-installation-unter-windows)
-  - [📁 Anlegen des Datenverzeichnisses](#-anlegen-des-datenverzeichnisses)
-  - [🚀 MySQL starten (Beispiel)](#-mysql-starten-beispiel)
-- [📑 Parameter-Referenz (Kurz)](#-parameter-referenz-kurz)
-  - [🔒 Netzwerk & Zugriff](#-netzwerk--zugriff)
-  - [🔐 TLS/SSL](#-tlsssl)
-  - [💾 InnoDB – Performance & Haltbarkeit](#-innodb--performance--haltbarkeit)
-  - [🌐 Zeichensätze](#-zeichensätze)
-  - [📊 Logging & Diagnose](#-logging--diagnose)
-  - [🔁 Binärlog](#-binärlog)
-  - [📦 mysqldump](#-mysqldump)
-- [🧩 Hinweise zur sicheren Konfiguration](#-hinweise-zur-sicheren-konfiguration)
-- [🛠️ MySQL Windows-Befehle](#-mysql-windows-befehle)
-  - [1️⃣ MySQL-Dienst starten und stoppen](#1️⃣-mysql-dienst-starten-und-stoppen)
-  - [2️⃣ Dienstinformationen anzeigen](#2️⃣-dienstinformationen-anzeigen)
-  - [3️⃣ MySQL-Serverprozess prüfen und beenden](#3️⃣-mysql-serverprozess-pruefen-und-beenden)
-  - [4️⃣ MySQL-Dienst löschen oder neu installieren](#4️⃣-mysql-dienst-loeschen-oder-neu-installieren)
-  - [🔹 Hinweise / Tipps](#-hinweise--tipps)
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
----
+- [Installation und aktive Konfiguration](#installation-und-aktive-konfiguration)
+- [Anmeldung und Benutzer](#anmeldung-und-benutzer)
+- [TLS einrichten](#tls-einrichten)
+- [Konfiguration prüfen](#konfiguration-prüfen)
+- [Parameterreferenz](#parameterreferenz)
+  - [Netzwerk & Zugriff](#netzwerk--zugriff)
+  - [TLS/SSL](#tlsssl)
+  - [InnoDB – Performance & Haltbarkeit](#innodb--performance--haltbarkeit)
+  - [Zeichensätze](#zeichensätze)
+  - [Logging & Diagnose](#logging--diagnose)
+  - [Binärlog](#binärlog)
+  - [mysqldump](#mysqldump)
+- [Betrieb](#betrieb)
 
-## 💾 Hinweise zur Installation unter Windows
+## Installation und aktive Konfiguration
 
-Installation über den **MySQL Installer for Windows**:  
-➡️ [https://dev.mysql.com/downloads/installer/](https://dev.mysql.com/downloads/installer/)
+[MySQL-8.4-MSI mit MySQL Configurator](https://dev.mysql.com/doc/refman/8.4/en/windows-installation.html) verwenden. Die folgenden Pfade sind die Beispiele aus der mitgelieferten [`my.ini`](my.ini); tatsächliche Installations- und Dienstpfade prüfen.
 
-Standardpfade nach Installation:
+| Zweck | Beispielpfad |
+|-------|--------------|
+| Binärdateien | `C:\Program Files\MySQL\MySQL Server 8.4\bin` |
+| Aktive Konfiguration, im Dienst zu prüfen | `C:\Program Files\MySQL\MySQL Server 8.4\my.ini` |
+| Initialisiertes Datenverzeichnis | `C:\ProgramData\MySQL\MySQL Server 8.4\Data` |
+| Logverzeichnis der Vorlage | `C:\Program Files\MySQL\MySQL Server 8.4\logs` |
 
-- Binärdateien: `C:\Program Files\MySQL\MySQL Server 8.4\bin\`
-- Konfigurationsdatei: `C:\Program Files\MySQL\MySQL Server 8.4\my.ini`
-- Datenverzeichnis: `C:\ProgramData\MySQL\MySQL Server 8.4\Data`
-- Log-Verzeichnis (empfohlen): `C:\Program Files\MySQL\MySQL Server 8.4\logs\`
+Das Datenverzeichnis muss bereits durch die Installation initialisiert sein. Das Anlegen eines leeren Ordners ersetzt keine DBMS-Initialisierung. Vorhandene Datenverzeichnisse nicht durch eine neue Initialisierung überschreiben.
 
-> Ordner `logs` ggf. manuell anlegen; Dienstbenutzer braucht Schreibrechte.
-
-### 📁 Anlegen des Datenverzeichnisses
+1. Den tatsächlichen Windows-Dienstnamen feststellen; unten wird `MySQL` als Beispiel verwendet.
+2. Mit `sc.exe qc MySQL` prüfen, welche Konfiguration der Dienst lädt. Die mitgelieferte `my.ini` allein durch ihre Ablage im Repository wird nicht aktiv.
+3. Pfade und Speicherwerte in der aktiven Konfiguration anpassen. Log- und gegebenenfalls Import-/Export-Verzeichnisse anlegen; dem Dienstkonto die benötigten Rechte geben.
+4. Dienst nach der Anpassung neu starten und das konfigurierte Fehlerlog prüfen.
 
 ```powershell
-cd C:\
-md "C:\ProgramData\MySQL\MySQL Server 8.4\Data"
+sc.exe qc MySQL
+net stop MySQL
+net start MySQL
+sc.exe query MySQL
 ```
 
-`my.ini` Beispiel:
+Dienständerungen benötigen eine PowerShell mit Administratorrechten. Ein zweiter manuell gestarteter Server darf nicht dasselbe Datenverzeichnis wie der laufende Dienst verwenden.
 
-```ini
-[mysqld]
-datadir = C:/ProgramData/MySQL/MySQL Server 8.4/Data
-```
+## Anmeldung und Benutzer
 
-### 🚀 MySQL starten (Beispiel)
+Die Client-Befehle können in einer normalen PowerShell ausgeführt werden; der Aufrufoperator `&` führt den in Anführungszeichen angegebenen Programmpfad aus.
 
 ```powershell
-cd "C:\Program Files\MySQL\MySQL Server 8.4\bin"
-mysqld --defaults-file="C:\Program Files\MySQL\MySQL Server 8.4\my.ini" --console
+& "C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" --host=127.0.0.1 --user=root --password
 ```
 
-MySQL-Client:
+Das Passwort wird interaktiv abgefragt. Administrationskonten nur für Einrichtung und Wartung verwenden; Anwendungen erhalten eigene, eingeschränkte Konten.
 
-```powershell
-"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysql.exe" -u root -p
-```
+Unter Windows enthält dieser Ordner kein Init-Skript. Datenbank, Anwendungsnutzer und Rechte sind in einer administrativen SQL-Sitzung passend zur Anwendung einzurichten. Die Linux-Compose-Variablen erzeugen hier keine Konten.
 
-Weitere Infos: [MySQL 8.4 Reference Manual – Installing on Windows](https://dev.mysql.com/doc/refman/8.4/en/windows-installation.html)
+## TLS einrichten
 
----
+Die Server-TLS-Zeilen in `my.ini` sind auskommentiert. Die Vorlage erzwingt daher noch keine von dir konfigurierte TLS-Verbindung. Nach der [gemeinsamen TLS-Anleitung](../../../../docs/TLS-de.md) CA-, Serverzertifikat und Serverschlüssel erzeugen, unter den in `ssl-ca`, `ssl-cert` und `ssl-key` genannten Namen ablegen und die Serverzeilen im Abschnitt `[mysqld]` aktivieren. Client-Zertifikatsoptionen gehören in einen passenden Client-Abschnitt.
 
-# 📑 Parameter-Referenz (Kurz)
+Dem Dienstkonto Leserechte auf den privaten Serverschlüssel geben, danach die Transportanforderung (`require_secure_transport=ON` beziehungsweise passende Kontoregeln) setzen und den Dienst neu starten. Auf dem Client CA- und Namensprüfung aktivieren. Die genaue Prüfung hängt vom MariaDB- beziehungsweise MySQL-Client ab; `SHOW SESSION STATUS LIKE 'Ssl_cipher';` zeigt die Verschlüsselung der aktuellen Verbindung.
 
-## 🔒 Netzwerk & Zugriff
+## Konfiguration prüfen
+
+Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Werte mit `SHOW VARIABLES` prüfen, insbesondere Dateipfade, Netzwerkbindung, TLS und Speicherwerte. Ein erfolgreicher Dienststart allein bestätigt diese Einstellungen nicht.
+
+## Parameterreferenz
+
+### Netzwerk & Zugriff
 
 | Option                  | Bedeutung                      | Empfehlung |
 |-------------------------|--------------------------------|------------|
@@ -80,32 +79,30 @@ Weitere Infos: [MySQL 8.4 Reference Manual – Installing on Windows](https://de
 | `secure_file_priv`      | Whitelist-Ordner für INFILE    | Dedizierten Ordner setzen oder `NULL` |
 | `lower_case_table_names`| Case-Semantik (Windows)        | `1` (Pflicht) |
 
-## 🔐 TLS/SSL
+### TLS/SSL
 
 | Option                      | Bedeutung                  | Empfehlung |
 |-----------------------------|----------------------------|------------|
 | `ssl-ca` / `ssl-cert` / `ssl-key` | CA/Server-Zertifikate | Pfade setzen; Rechte restriktiv |
 | `require_secure_transport`  | Nur sichere Verbindungen   | `ON` nach TLS-Einrichtung |
 
-Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfiguration)
-
-## 💾 InnoDB – Performance & Haltbarkeit
+### InnoDB – Performance & Haltbarkeit
 
 | Option                          | Wirkung                         | Empfehlung |
 |---------------------------------|---------------------------------|------------|
-| `innodb_buffer_pool_size`       | Hauptcache                      | 50–80 % RAM |
+| `innodb_buffer_pool_size`       | Hauptcache                      | An verfügbaren RAM und Workload anpassen |
 | `innodb_redo_log_capacity`      | Redo-Log-Gesamtgröße (≥8.0)     | 1–4 GB je nach Schreiblast |
 | `innodb_file_per_table`         | Separate Tablespaces            | `1` |
 | `innodb_flush_log_at_trx_commit`| Haltbarkeit vs. Throughput      | `1` (ACID), `2` bei Performancebedarf |
 
-## 🌐 Zeichensätze
+### Zeichensätze
 
 | Option                 | Empfehlung          |
 |------------------------|---------------------|
 | `character_set_server` | `utf8mb4`           |
 | `collation_server`     | `utf8mb4_0900_ai_ci`|
 
-## 📊 Logging & Diagnose
+### Logging & Diagnose
 
 | Option                       | Zweck                          | Empfehlung |
 |------------------------------|--------------------------------|------------|
@@ -117,7 +114,7 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `general_log`                | Alle Abfragen loggen           | In Prod: `0` |
 | `general_log_file`           | Pfad für General Query Log     | z.B. `C:/Program Files/MySQL/MySQL Server 8.4/logs/mysql-general.log` |
 
-## 🔁 Binärlog
+### Binärlog
 
 | Option                      | Empfehlung / Hinweis          |
 |-----------------------------|-------------------------------|
@@ -126,7 +123,7 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `sync_binlog`               | `1` für Haltbarkeit            |
 | `binlog_expire_logs_seconds`| 7–14 Tage                     |
 
-## 📦 mysqldump
+### mysqldump
 
 | Option              | Wirkung                 | Empfehlung     |
 |---------------------|-------------------------|----------------|
@@ -134,60 +131,6 @@ Erstellung TLS Zertifikat siehe [README](../../../../README-de.md#-tls-konfigura
 | `quote-names`       | Maskiert Identifier     | Aktivieren     |
 | `max_allowed_packet`| Größere Rows/Blobs      | ≥ `64M`        |
 
----
+## Betrieb
 
-## 🧩 Hinweise zur sicheren Konfiguration
-
-- TLS konfigurieren, dann `require_secure_transport=ON` setzen.  
-- `local_infile=0` und `secure_file_priv` kombinieren, um Datei-IO zu kontrollieren.  
-- Starke Passwörter, Minimalrechte für App-User; kein Alltagsbetrieb als `root`.  
-- Binlog-Rotation (`binlog_expire_logs_seconds`) und Backups regelmäßig prüfen.  
-- Pfade (Logs/SSL/Data) an Installation anpassen; Rechte für Dienstbenutzer setzen.
-
----
-
-## 🛠️ MySQL Windows-Befehle
-
-### 1️⃣ MySQL-Dienst starten und stoppen
-
-| Befehl            | Beschreibung                                                                |
-|-------------------|----------------------------------------------------------------------------|
-| `net start MySQL` | Startet den Windows-Dienst `MySQL`. Der Server läuft danach im Hintergrund. |
-| `net stop MySQL`  | Stoppt den Windows-Dienst `MySQL` sauber.                                   |
-
-> ⚠️ Administratorrechte erforderlich.
-
-### 2️⃣ Dienstinformationen anzeigen
-
-| Befehl                                       | Beschreibung                                                                          |
-|----------------------------------------------|---------------------------------------------------------------------------------------|
-| `sc qc MySQL`                                | Zeigt die Konfiguration des Dienstes.                                                 |
-| `sc query MySQL`                             | Zeigt den Status (RUNNING/STOPPED).                                                   |
-| `sc query type= service \| findstr /I MySQL` | Filtert Dienste nach „MySQL“.                                                         |
-
-### 3️⃣ MySQL-Serverprozess prüfen und beenden
-
-| Befehl                                   | Beschreibung                                              |
-|------------------------------------------|-----------------------------------------------------------|
-| `tasklist /FI "IMAGENAME eq mysqld.exe"` | Prüft, ob `mysqld.exe` läuft.                             |
-| `taskkill /IM mysqld.exe /F`             | Beendet den MySQL-Serverprozess erzwingend (nur im Notfall). |
-
-### 4️⃣ MySQL-Dienst löschen oder neu installieren
-
-| Befehl                                                                                                         | Beschreibung                                                                            |
-|---------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|
-| `sc delete MySQL`                                                                                              | Löscht den registrierten MySQL-Dienst. Daten/Config bleiben erhalten.                   |
-| `"C:\Program Files\MySQL\MySQL Server 8.4\bin\mysqld.exe" --install MySQL --defaults-file="C:\Pfad\zu\my.ini"` | Installiert neuen Dienst `MySQL` mit angegebener Konfigurationsdatei.                   |
-
-> ⚠️ Administratorrechte erforderlich; Pfad zur `my.ini` muss korrekt sein.
-
-### 🔹 Hinweise / Tipps
-
-- Dienststeuerung via `net`/`sc`; Prozesskontrolle via `tasklist`/`taskkill`.  
-- Fehlerlogs prüfen: `C:\Program Files\MySQL\MySQL Server 8.4\logs\error.log` (falls konfiguriert).  
-- TLS aktivieren, `secure_file_priv` setzen, Root-Zugriff schützen.
-
----
-
-© 2025 – Sichere Datenbankkonfigurationen
-
+Backups, Aufbewahrung und Restore-Tests separat einrichten. Binärlogs ermöglichen zusammen mit einer geeigneten Sicherung ein Recovery-Konzept; ihre Aktivierung allein ist kein Backup. Logs nach den Pfaden in der aktiven `my.ini` auswerten. Für Prozessinformationen `tasklist /FI "IMAGENAME eq mysqld.exe"` verwenden; regulär über den Dienst stoppen.

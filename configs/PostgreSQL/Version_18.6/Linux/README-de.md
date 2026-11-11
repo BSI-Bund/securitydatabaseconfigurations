@@ -1,19 +1,26 @@
-# <img src="https://www.vectorlogo.zone/logos/postgresql/postgresql-icon.svg" alt="PostgreSQL Logo" width="26"/> PostgreSQL - Linux (Docker Compose)
+# PostgreSQL - Linux (Docker Compose)
+
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
 - [Sicherheitsstatus](#sicherheitsstatus)
 - [Start](#start)
 - [TLS-Modus](#tls-modus)
 - [Services](#services)
+  - [postgres](#postgres)
+  - [adminer](#adminer)
 - [Adminer-Login](#adminer-login)
 - [Umgebungsvariablen](#umgebungsvariablen)
 - [Parameterreferenz](#parameterreferenz)
+  - [Netzwerk und Authentifizierung](#netzwerk-und-authentifizierung)
+  - [TLS](#tls)
+  - [Speicher und Dauerhaftigkeit](#speicher-und-dauerhaftigkeit)
+  - [Logging und Diagnose](#logging-und-diagnose)
+  - [Laufzeitlimits](#laufzeitlimits)
 - [Backup und Restore](#backup-und-restore)
 - [BSI-Alignment](#bsi-alignment)
 - [Volumes und Ports](#volumes-und-ports)
 - [Betrieb](#betrieb)
 - [Referenzen](#referenzen)
-
----
 
 ## Sicherheitsstatus
 
@@ -36,6 +43,8 @@ Vor produktiver Nutzung: Beispielpasswörter ersetzen, Netzwerkbereiche enger fa
 ---
 
 ## Start
+
+Der erste Befehlsblock wechselt aus diesem README-Verzeichnis einmalig nach `postgres-compose/`. Alle weiteren Shell-Befehle dieser Anleitung werden dort ausgeführt. `.env` vor dem Start bearbeiten und sämtliche Beispiel-Secrets ersetzen.
 
 Dieses Setup stellt PostgreSQL 18.6 und eine Adminer-Weboberfläche für lokale Administration bereit.
 Es basiert auf offiziellen Images:
@@ -60,7 +69,6 @@ PostgreSQL kann TLS- und Nicht-TLS-Verbindungen auf demselben Port annehmen. Um 
 Für lokale Tests:
 
 ```bash
-cd postgres-compose
 ./scripts/up-local-tls.sh
 ```
 
@@ -71,7 +79,6 @@ Adminer kann im TLS-Modus weiter genutzt werden. Der Server bleibt `postgres`; a
 Manueller TLS-Ablauf:
 
 ```bash
-cd postgres-compose
 ./scripts/generate-local-tls.sh
 docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 ```
@@ -116,7 +123,7 @@ Für produktionsnahe Deployments die lokal generierte CA und das Serverzertifika
 
 ## Adminer-Login
 
-Empfohlene Login-Daten für das lokale Beispiel:
+Die Tabelle zeigt die Vorlagenwerte. Für den Login die tatsächlich in `.env` gesetzten Werte verwenden:
 
 | Feld | Schreibzugriff | Nur Lesen |
 |------|----------------|-----------|
@@ -136,7 +143,7 @@ Hinweis: Wenn Adminer oben `postgres` anzeigt, ist damit der Compose-Service/Ser
 
 Beispielwerte liegen in `postgres-compose/.env.example`. Alle Secrets vor Nutzung ändern:
 
-```bash
+```dotenv
 POSTGRES_VERSION=18.6
 TZ=Europe/Berlin
 DB_PORT=5432
@@ -174,7 +181,7 @@ PGDATA=/var/lib/postgresql/18/docker
 | `ssl_ca_file` | CA-Zertifikat | `/etc/postgresql/ssl/ca.crt` |
 | `ssl_min_protocol_version` | Minimale TLS-Version | `TLSv1.2` oder strenger, falls Clients es unterstützen |
 
-Zertifikatserstellung ist auch in der Repository-[README](../../../../README-de.md#-tls-konfiguration) beschrieben.
+Zertifikatserstellung ist auch in der [TLS-Anleitung](../../../../docs/TLS-de.md) beschrieben.
 
 ### Speicher und Dauerhaftigkeit
 
@@ -215,10 +222,11 @@ Zertifikatserstellung ist auch in der Repository-[README](../../../../README-de.
 
 ## Backup und Restore
 
+RPO bezeichnet den maximal akzeptablen Datenverlust, RTO die angestrebte Wiederherstellungszeit. Der Restore-Befehl unten überschreibt Daten in der gewählten Zieldatenbank; dafür eine vorgesehene Test-/Wiederherstellungsumgebung verwenden und den tatsächlichen Dump-Dateinamen einsetzen.
+
 Das Compose-Beispiel enthält Hilfsskripte für logische Backups:
 
 ```bash
-cd postgres-compose
 ./scripts/backup.sh
 CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
 ```
@@ -231,15 +239,13 @@ CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
 
 Das unterstützt einen einfachen Backup-Ablauf, ersetzt aber kein vollständiges Recovery-Konzept. Backup-Frequenz, Aufbewahrung, Verschlüsselung, externe Ablage, Restore-Tests und RPO/RTO müssen festgelegt werden. Für Point-in-Time-Recovery muss WAL-Archivierung ergänzt werden.
 
+`restore.sh` stellt nur den Datenbank-Dump wieder her. In einer neuen Zielinstanz müssen benötigte Rollen und globale Objekte vorab separat geprüft und gegebenenfalls aus der `globals-*.sql` eingespielt werden. Die Checksum-Datei vor dem Restore prüfen; die Hilfsskripte verschlüsseln Backups nicht und richten keinen Zeitplan ein.
+
 ---
 
 ## BSI-Alignment
 
-Diese Baseline ist an den BSI-Eckpunkten für Datenbanksysteme, dem BSI-Praxisleitfaden für sichere Datenbanksysteme und APP.4.3 ausgerichtet. Abgedeckt sind insbesondere Basishärtung, geregelte Einrichtung, verschlüsselte Datenbankanbindung, Monitoring/Logging und Backup-/Restore-Vorbereitung.
-
-Für produktionsnahe Nutzung sollte die Konfiguration mit Schutzbedarf, Netzwerkfreigaben, Secret-Management, Backup/Restore und den vorhandenen Betriebsprozessen abgeglichen werden.
-
-Siehe [BSI-Alignment-Hinweise](../BSI-Alignment-de.md) für die Checkliste.
+Für dieses Setup gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../../../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../../../README-de.md#umsetzung-je-datenbank) beschreibt die Zuordnung für alle DBMS; die konkrete PostgreSQL-Konfiguration und die erforderlichen Betriebsaufgaben stehen in dieser README.
 
 ---
 
@@ -259,6 +265,8 @@ Siehe [BSI-Alignment-Hinweise](../BSI-Alignment-de.md) für die Checkliste.
 
 ## Betrieb
 
+Der folgende `up`-Befehl startet die Basisvariante ohne TLS. Für den TLS-Modus weiter unten das Startskript verwenden; ein einfaches `docker compose up -d` würde wieder die Basisdefinition anwenden. `pg_isready` prüft Erreichbarkeit, nicht eine erfolgreiche Anmeldung oder TLS-Namensprüfung.
+
 ```bash
 docker compose up -d
 docker compose logs -f
@@ -266,6 +274,8 @@ docker compose exec -e PGPASSWORD='S3cur3P@ss!' postgres psql -U app_admin -d ap
 docker compose exec -e PGPASSWORD='ChangeMe!Root123' postgres psql -U postgres -d appdb -f /docker-entrypoint-initdb.d/check_config.sql
 docker compose down
 ```
+
+PostgreSQL-, Image-, Host- und Plattform-Updates regelmäßig verfolgen und Upgrades vorab testen. Umfang, Weiterleitung und Aufbewahrung der Datenbanklogs für die eigene Umgebung festlegen.
 
 TLS-Start mit einem Befehl:
 
