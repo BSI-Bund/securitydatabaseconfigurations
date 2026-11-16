@@ -27,14 +27,14 @@ The guides are intended for administrators and developers familiar with the resp
 
 ## Available databases and operating models
 
-Versions describe the configuration templates, not the latest vendor releases.
+Versions identify template baselines and applicable releases. Each database README states platform verification and the current image default; further versions are not automatically approved.
 
 | Database | Configuration version | Included operating models | Start here |
 |----------|-----------------------|---------------------------|------------|
 | MariaDB | 11.8 | Linux with Docker Compose; native Windows installation | [MariaDB](configs/MariaDB/README.md) |
-| MongoDB | 8.x | Linux with Docker Compose; native Windows installation | [MongoDB](configs/MongoDB/README.md) |
-| MySQL Community Server | 8.4.6 | Linux with Docker Compose; native Windows installation | [MySQL](configs/MySQL/README.md) |
-| PostgreSQL | 18.6 | Linux with Docker Compose; native Windows installation | [PostgreSQL](configs/PostgreSQL/README.md) |
+| MongoDB | Linux 8.3.11; Windows 8.0 | Linux with Docker Compose; native Windows installation | [MongoDB](configs/MongoDB/README.md) |
+| MySQL Community Server | 8.4.6; Compose also 8.4.13 | Linux with Docker Compose; native Windows installation | [MySQL](configs/MySQL/README.md) |
+| PostgreSQL | 18.6; Compose also 18.7 | Linux with Docker Compose; native Windows installation | [PostgreSQL](configs/PostgreSQL/README.md) |
 | Redis Enterprise | 8.0.x | Native Linux cluster installation | [Redis Enterprise](configs/Redis/README.md) |
 | Weaviate | 1.34.0 | Docker Compose; additional standalone variant with Traefik | [Weaviate](configs/Weaviate/README.md) |
 
@@ -52,6 +52,8 @@ configs/
 MariaDB, MongoDB, MySQL, and PostgreSQL have separate `Linux/` and `Windows/` directories below the version folder. Redis contains a Linux guide for Redis Enterprise. Weaviate keeps its Compose files directly in the version folder, with the Traefik variant in `reverse-proxy-traefik/`.
 
 Each German guide has an English counterpart without `-de` in its filename. Filenames and directory layouts vary by DBMS; the respective README links to the available files.
+
+Version-dependent configuration or setup changes receive a new version folder. When a template remains unchanged, its database README lists applicable versions and those actually tested. The [shared version and configuration-folder policy](configs/README.md#versions-and-configuration-folders) defines this mapping.
 
 ## Security objectives and operational tasks
 

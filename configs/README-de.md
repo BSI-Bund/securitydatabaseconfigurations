@@ -10,6 +10,7 @@ Diese README legt das gemeinsame BSI-Alignment für **alle Datenbankvorlagen** u
   - [Freigabekriterien und Transportgrenzen](#freigabekriterien-und-transportgrenzen)
   - [Einordnung und Nutzung](#einordnung-und-nutzung)
   - [Umsetzung je Datenbank](#umsetzung-je-datenbank)
+- [Versionen und Konfigurationsordner](#versionen-und-konfigurationsordner)
 - [Datenbankordner](#datenbankordner)
 
 ## BSI-Alignment
@@ -35,7 +36,7 @@ Der IT-Grundschutz-Baustein APP.4.3 behandelt **relationale Datenbanksysteme**. 
 | Transportschutz | Datenbankverbindungen verschlüsseln und Zertifikatsidentitäten prüfen | DBMS-spezifische TLS-Konfiguration aktivieren; CA, Zertifikate, Clients und Netzwerkfreigaben anpassen |
 | Logging und Monitoring | Sicherheitsrelevante Ereignisse protokollieren und im Betrieb auswerten | Logumfang, Zugriffsrechte, Weiterleitung, Aufbewahrung und Zuständigkeiten für die Überwachung festlegen |
 | Backup und Restore | Regelmäßige, geschützte Backups erstellen und Wiederherstellbarkeit prüfen | Zeitplanung, Verschlüsselung, externe Ablage, Aufbewahrung, Restore-Tests und Wiederherstellungsziele festlegen |
-| Updates und Wartung | Datenbank und Betriebsumgebung aktuell halten | DBMS-, Image-, Host- und Plattform-Updates verfolgen; Upgrades planen und testen |
+| Updates und Wartung | Datenbank und Betriebsumgebung aktuell halten | DBMS-, Image-, Host- und Plattform-Updates verfolgen; Versionszuordnung nach der untenstehenden Regel pflegen; Upgrades planen und testen |
 
 ### Freigabekriterien und Transportgrenzen
 
@@ -67,6 +68,18 @@ Die gemeinsame Checkliste gilt für jede der folgenden Datenbanken. Die Tabelle 
 | [Weaviate](Weaviate/README-de.md) | API-Key-Authentifizierung, RBAC, lokale direkte Zugänge und Container-Härtung; separate Traefik-TLS-Variante mit deaktiviertem Dashboard und lokaler Portbindung | Beispiel-Keys ersetzen, Benutzerrollen vergeben und Backups einrichten; Zertifikate für die Proxy-Variante bereitstellen und gewollte Netzwerkfreigaben prüfen |
 
 DBMS-spezifische Umsetzung und Betriebsaufgaben stehen in den jeweiligen Versions- und Plattform-READMEs. Die gemeinsamen BSI-Referenzen und Sicherheitsziele werden hier für alle DBMS gepflegt.
+
+## Versionen und Konfigurationsordner
+
+Ein Versionsordner steht für eine bestimmte Konfiguration und deren Einrichtung. Sein Name allein ist keine Aussage darüber, dass alle Versionen dieser Reihe geprüft wurden.
+
+- **Neuer Ordner bei versionsabhängigen Änderungen:** Benötigt eine Version andere Optionen, TLS-/Authentifizierungseinstellungen, Datenpfade, Init-Skripte, Client-Aufrufe oder eine andere Startfolge, wird ab dieser Version ein eigener `Version_*`-Ordner angelegt. Die bisherige Variante und ihre Versionszuordnung bleiben erhalten. Das gilt auch für Änderungen innerhalb derselben Patch- oder Minor-Reihe.
+- **Gleicher Ordner bei unveränderter Vorlage:** Bleiben Konfiguration und Einrichtung gleich, wird die vorhandene Vorlage verwendet. Die Datenbank-README nennt ausdrücklich die zugeordneten Versionen oder einen belegten Versionsbereich und die konkret getesteten Versionen. Für einen bloßen Image-Versionswechsel ist kein zusätzlicher Ordner nötig.
+- **Vorlagenbasis und Gültigkeit trennen:** Beispielsweise bleibt `Version_18.6` die Ordnerbezeichnung einer mit 18.6 eingeführten Vorlage, wenn sie unverändert auch mit 18.7 geprüft wurde. Die README nennt dann beide Versionen und den aktuellen Image-Standard. Eine pauschale Angabe wie „ab 18.6“ wird auf den geprüften Bereich begrenzt; künftige Patchstände und andere Hauptversionen sind nicht automatisch freigegeben.
+- **Prüfstand angeben:** Linux-Compose, native Windows-Installation und native Cluster getrennt ausweisen. Einen Image-Tag ohne festgelegte Patchversion als solchen kennzeichnen. Ein erfolgreicher Test mit einem beweglichen Tag belegt keine Kompatibilität mit allen Versionen, auf die dieser Tag später zeigt.
+- **Upgrades separat bewerten:** Kompatibilität einer Neuinstallation bestätigt noch kein Upgrade bestehender Daten. Herstellerhinweise, nötige Zwischenschritte sowie Backup und Restore gehören in die jeweilige Anleitung. Bei einer neuen Zuordnung auch Einstiegstabellen und beide Sprachfassungen aktualisieren.
+
+Die Versionszuordnung in der jeweiligen Datenbank-README ist maßgeblich. Die gemeinsamen BSI-Ziele und Freigabekriterien gelten für jede neue oder weiterverwendete Variante.
 
 ## Datenbankordner
 

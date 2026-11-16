@@ -2,6 +2,8 @@
 
 [English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
+**Versionszuordnung:** Die unveränderte Vorlage gilt für die geprüften Versionen **18.6 und 18.7**. Der Ordner `Version_18.6` bezeichnet die Vorlagenbasis. `POSTGRES_VERSION` wählt das Image; Standard ist `18.7`. Weitere Versionen müssen nach der [gemeinsamen Versionsregel](../../../README-de.md#versionen-und-konfigurationsordner) geprüft werden. Der Windows-Prüfstand steht separat in der [Datenbankübersicht](../../README-de.md#versionsgültigkeit-und-prüfstand).
+
 - [Sicherheitsstatus](#sicherheitsstatus)
 - [Start](#start)
 - [TLS-Modus](#tls-modus)
@@ -44,9 +46,11 @@ Vor produktiver Nutzung: Beispielpasswörter ersetzen, Netzwerkbereiche enger fa
 
 ## Start
 
+Für bestehende 18.x-Instanzen die [Herstellerhinweise zu 18.7](https://www.postgresql.org/docs/release/18.7/) vor dem Image-Wechsel lesen. Dort werden unter anderem gegebenenfalls nötiges `REINDEX`, eine neue Vollsicherung bei inkrementellen Backups und Anforderungen an C-Erweiterungen beschrieben. Die Laufzeittests dieser Vorlage belegen Neuinstallation sowie Backup/Restore, keine allgemeine Upgrade-Freigabe für Bestandsdaten.
+
 Der erste Befehlsblock wechselt aus diesem README-Verzeichnis einmalig nach `postgres-compose/`. Alle weiteren Shell-Befehle dieser Anleitung werden dort ausgeführt. `.env` vor dem Start bearbeiten und sämtliche Beispiel-Secrets ersetzen.
 
-Dieses Setup stellt PostgreSQL 18.6 und eine Adminer-Weboberfläche für lokale Administration bereit.
+Dieses Setup stellt standardmäßig PostgreSQL 18.7 und eine Adminer-Weboberfläche für lokale Administration bereit.
 Es basiert auf offiziellen Images:
 
 - [PostgreSQL auf Docker Hub](https://hub.docker.com/_/postgres)
@@ -111,7 +115,7 @@ Für produktionsnahe Deployments die lokal generierte CA und das Serverzertifika
 
 ### postgres
 
-- Image `postgres:18.6`
+- Image `postgres:18.7`
 - Startet mit eigener `postgresql.conf` und `pg_hba.conf`
 - Initialisiert mit Skripten aus `./initdb/`
 - Speichert Daten im Volume `postgres_data`
@@ -152,7 +156,7 @@ Hinweis: Wenn Adminer oben `postgres` anzeigt, ist damit der Compose-Service/Ser
 Beispielwerte liegen in `postgres-compose/.env.example`. Alle Secrets vor Nutzung ändern:
 
 ```dotenv
-POSTGRES_VERSION=18.6
+POSTGRES_VERSION=18.7
 TZ=Europe/Berlin
 DB_PORT=5432
 ADMINER_PORT=8080

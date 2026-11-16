@@ -2,7 +2,9 @@
 
 [English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
-Diese Vorlage kombiniert **MySQL 8.4.6** und Adminer. Die Datenbankkonfiguration liegt in [`my.cnf`](my.cnf), die Compose-Datei in [`mysql-compose/docker-compose.yml`](mysql-compose/docker-compose.yml).
+Diese Vorlage kombiniert **MySQL 8.4.13** und Adminer. Die Datenbankkonfiguration liegt in [`my.cnf`](my.cnf), die Compose-Datei in [`mysql-compose/docker-compose.yml`](mysql-compose/docker-compose.yml).
+
+**Versionszuordnung:** Die unveränderte Vorlage gilt für die geprüften Versionen **8.4.6 und 8.4.13**. Der Ordner `Version_8.4.6` bezeichnet die Vorlagenbasis. `MYSQL_VERSION` in `.env` wählt das Image; Standard ist `8.4.13`. Zwischenversionen und weitere Patchstände sind nicht automatisch geprüft. Der Windows-Prüfstand steht separat in der [Datenbankübersicht](../../README-de.md#versionsgültigkeit-und-prüfstand).
 
 - [Vorbereitung](#vorbereitung)
 - [Start und Anmeldung](#start-und-anmeldung)
@@ -42,9 +44,11 @@ docker compose config --quiet
 
 TLS ist in `my.cnf` bereits mit expliziten Zertifikatspfaden und `require_secure_transport=ON` konfiguriert. Ohne die vorherige Zertifikatseinbindung ist die Vorlage nicht startfertig.
 
-Das festgelegte MySQL-8.4.6-Image verwendet beim Bootstrap eine temporäre Client-Optionsdatei. Deshalb darf `MYSQL_ROOT_PASSWORD` keine doppelten Anführungszeichen, Backslashes oder Zeilenumbrüche enthalten. Das Startskript prüft dies vor der Initialisierung; ein langes zufällig erzeugtes Passwort, beispielsweise aus `openssl rand -hex 32`, vermeidet diese Einschränkung. Sie betrifft das Bootstrap-Root-Passwort, nicht das Anwendungspasswort.
+Die geprüften MySQL-Images 8.4.6 und 8.4.13 verwenden beim Bootstrap eine temporäre Client-Optionsdatei. Deshalb darf `MYSQL_ROOT_PASSWORD` keine doppelten Anführungszeichen, Backslashes oder Zeilenumbrüche enthalten. Das Startskript prüft dies vor der Initialisierung; ein langes zufällig erzeugtes Passwort, beispielsweise aus `openssl rand -hex 32`, vermeidet diese Einschränkung. Sie betrifft das Bootstrap-Root-Passwort, nicht das Anwendungspasswort.
 
 ## Start und Anmeldung
+
+Bei einem Wechsel bestehender Daten-Volumes vorab ein geprüftes Backup erstellen und die [MySQL-8.4-Upgrade-Hinweise](https://dev.mysql.com/doc/refman/8.4/en/upgrading.html) sowie die [Release Notes zu 8.4.13](https://dev.mysql.com/doc/relnotes/mysql/8.4/en/news-8-4-13.html) beachten. Die Kompatibilitätsprüfung dieser Vorlage erfolgte mit frischen Daten-Volumes; sie ersetzt keinen Upgrade-Test mit den eigenen Daten.
 
 ```bash
 docker compose up -d

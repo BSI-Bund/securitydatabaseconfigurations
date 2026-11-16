@@ -4,10 +4,21 @@
 
 ## Version and operating models
 
-Configuration version: **8.4.6**, directory [`Version_8.4.6`](Version_8.4.6/).
+Template baseline: **8.4.6**, directory [`Version_8.4.6`](Version_8.4.6/).
 
 - [Linux with Docker Compose](Version_8.4.6/Linux/README.md)
 - [Native Windows](Version_8.4.6/Windows/README.md)
+
+## Version applicability and verification
+
+The template baseline is 8.4.6. The mapping below applies to this directory; it does not approve other MySQL 8.4 patches or new major versions.
+
+| Platform / variant | Applicable versions | Verification as of 2026-11-16 |
+|---|---|---|
+| Linux with Compose | 8.4.6 and 8.4.13 | Both versions runtime-tested with the unchanged template; image default `mysql:8.4.13`, selectable through `MYSQL_VERSION`. |
+| Native Windows | 8.4.6 | Configuration reviewed statically; no native runtime test. |
+
+New version mappings and differing templates follow the [shared version policy](../README.md#versions-and-configuration-folders).
 
 ## BSI alignment
 

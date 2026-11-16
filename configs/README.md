@@ -10,6 +10,7 @@ This README defines the shared BSI alignment for **every database template** und
   - [Release criteria and transport boundaries](#release-criteria-and-transport-boundaries)
   - [Scope and use](#scope-and-use)
   - [Implementation by database](#implementation-by-database)
+- [Versions and configuration folders](#versions-and-configuration-folders)
 - [Database folders](#database-folders)
 
 ## BSI alignment
@@ -35,7 +36,7 @@ IT-Grundschutz module APP.4.3 addresses **relational database systems**. Its app
 | Transport protection | Encrypt database connections and verify certificate identities | Enable the DBMS-specific TLS configuration; adapt CA, certificates, clients, and network exposure |
 | Logging and monitoring | Record security-relevant events and review them during operations | Set log scope, access permissions, forwarding, retention, and monitoring responsibilities |
 | Backup and restore | Create regular, protected backups and verify restorability | Define scheduling, encryption, off-host storage, retention, restore tests, and recovery objectives |
-| Updates and maintenance | Keep the database and its operating environment maintained | Track DBMS, image, host, and platform updates; plan and test upgrades |
+| Updates and maintenance | Keep the database and its operating environment maintained | Track DBMS, image, host, and platform updates; maintain version mappings under the policy below; plan and test upgrades |
 
 ### Release criteria and transport boundaries
 
@@ -67,6 +68,18 @@ The shared checklist applies to each database below. This table maps existing me
 | [Weaviate](Weaviate/README.md) | API key authentication, RBAC, local direct access, and container hardening; separate Traefik TLS variant with disabled dashboard and local port binding | Replace example keys, assign user roles, and configure backups; provide proxy certificates and review intended network exposure |
 
 DBMS-specific implementation and operational tasks are documented in the respective version and platform READMEs. The common BSI references and security objectives are maintained here for every DBMS.
+
+## Versions and configuration folders
+
+A version folder represents a particular configuration and its setup procedure. Its name alone does not establish that every version in that release series has been tested.
+
+- **New folder for version-dependent changes:** If a version needs different options, TLS/authentication settings, data paths, initialization scripts, client commands, or startup steps, create a separate `Version_*` folder starting with that version. Preserve the previous variant and its version mapping. This also applies to changes within the same patch or minor series.
+- **Same folder for an unchanged template:** If configuration and setup remain the same, reuse the existing template. The database README explicitly lists applicable versions or an evidenced version range and the versions actually tested. An image-version change alone does not require another folder.
+- **Separate template baseline from applicability:** For example, `Version_18.6` remains the name of a template introduced with 18.6 if the unchanged template is also tested with 18.7. Its README then lists both versions and the current image default. Bound a statement such as "from 18.6" to the reviewed range; future patches and other major versions are not automatically approved.
+- **State verification scope:** Distinguish Linux Compose, native Windows installations, and native clusters. Identify image tags that do not pin a patch version. A successful test with a moving tag does not establish compatibility with every version that tag might reference later.
+- **Assess upgrades separately:** Fresh-install compatibility does not establish an upgrade path for existing data. Document vendor instructions, intermediate steps, and backup/restore in the respective guide. Update entry tables and both languages when extending a version mapping.
+
+The version mapping in each database README is authoritative. Shared BSI objectives and release criteria apply to every new or reused variant.
 
 ## Database folders
 

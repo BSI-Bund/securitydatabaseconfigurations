@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# The 8.4.6 image embeds the bootstrap root password in a quoted client option
+# The verified 8.4.6 and 8.4.13 images embed the root password in a quoted client option
 # file. Reject unsupported escaping before it can leave a half-initialized DB.
 newline='
 '

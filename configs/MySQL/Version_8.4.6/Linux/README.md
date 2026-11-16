@@ -2,7 +2,9 @@
 
 [Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI alignment](../../../README.md#bsi-alignment)
 
-This template combines **MySQL 8.4.6** and Adminer. The database configuration is [`my.cnf`](my.cnf); the Compose file is [`mysql-compose/docker-compose.yml`](mysql-compose/docker-compose.yml).
+This template combines **MySQL 8.4.13** and Adminer. The database configuration is [`my.cnf`](my.cnf); the Compose file is [`mysql-compose/docker-compose.yml`](mysql-compose/docker-compose.yml).
+
+**Version mapping:** The unchanged template applies to the tested versions **8.4.6 and 8.4.13**. Directory `Version_8.4.6` identifies its baseline. `MYSQL_VERSION` in `.env` selects the image; the default is `8.4.13`. Intermediate releases and further patches have not automatically been tested. Windows verification is listed separately in the [database overview](../../README.md#version-applicability-and-verification).
 
 - [Preparation](#preparation)
 - [Startup and login](#startup-and-login)
@@ -42,9 +44,11 @@ docker compose config --quiet
 
 `my.cnf` already specifies certificate paths and `require_secure_transport=ON`. The template requires certificate integration before it is ready to start.
 
-The pinned MySQL 8.4.6 image uses a temporary client option file during bootstrap. `MYSQL_ROOT_PASSWORD` therefore must not contain double quotes, backslashes, or newlines. The startup wrapper checks this before initialization; a long randomly generated password, for example from `openssl rand -hex 32`, avoids this restriction. It concerns the bootstrap root password, not the application password.
+The tested MySQL 8.4.6 and 8.4.13 images use a temporary client option file during bootstrap. `MYSQL_ROOT_PASSWORD` therefore must not contain double quotes, backslashes, or newlines. The startup wrapper checks this before initialization; a long randomly generated password, for example from `openssl rand -hex 32`, avoids this restriction. It concerns the bootstrap root password, not the application password.
 
 ## Startup and login
+
+Before switching an existing data volume, create a verified backup and follow the [MySQL 8.4 upgrade instructions](https://dev.mysql.com/doc/refman/8.4/en/upgrading.html) and [8.4.13 release notes](https://dev.mysql.com/doc/relnotes/mysql/8.4/en/news-8-4-13.html). Template compatibility was checked using fresh data volumes; this does not replace an upgrade test with your own data.
 
 ```bash
 docker compose up -d

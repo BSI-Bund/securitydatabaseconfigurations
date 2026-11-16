@@ -2,7 +2,7 @@
 
 [Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI alignment](../../../README.md#bsi-alignment)
 
-This template combines **MariaDB 11.8** and Adminer. The database configuration is [`mariadb.cnf`](mariadb.cnf); the Compose file is [`mariadb-compose/docker-compose.yml`](mariadb-compose/docker-compose.yml).
+This template combines **MariaDB 11.8** and Adminer. The database configuration is [`mariadb.cnf`](mariadb.cnf); the Compose file is [`mariadb-compose/docker-compose.yml`](mariadb-compose/docker-compose.yml). The last runtime test used 11.8.3 through the moving `mariadb:11.8` tag; the [version mapping](../../README.md#version-applicability-and-verification) lists platform verification.
 
 - [Preparation](#preparation)
 - [Startup and login](#startup-and-login)

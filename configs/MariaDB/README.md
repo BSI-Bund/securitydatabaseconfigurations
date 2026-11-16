@@ -4,10 +4,21 @@
 
 ## Version and operating models
 
-Configuration version: **11.8**, directory [`Version_11`](Version_11/).
+Template baseline: **11.8**, directory [`Version_11`](Version_11/).
 
 - [Linux with Docker Compose](Version_11/Linux/README.md)
 - [Native Windows](Version_11/Windows/README.md)
+
+## Version applicability and verification
+
+Directory `Version_11` currently contains the template for the 11.8 series. This does not approve every MariaDB 11 version.
+
+| Platform / variant | Applicable versions | Verification as of 2026-11-16 |
+|---|---|---|
+| Linux with Compose | 11.8.3 | Runtime verification with the locally available `mariadb:11.8` image; this is a moving tag. |
+| Native Windows | 11.8 | Configuration reviewed statically; no native runtime test. |
+
+New version mappings and differing templates follow the [shared version policy](../README.md#versions-and-configuration-folders).
 
 ## BSI alignment
 

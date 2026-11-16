@@ -1,11 +1,11 @@
 # docker-compose.yml
-# MySQL 8.4.6
+# MySQL template from 8.4.6; verified with 8.4.6 and 8.4.13
 # https://hub.docker.com/_/mysql
 # https://hub.docker.com/_/adminer
 
 services:
   mysql:
-    image: mysql:8.4.6
+    image: mysql:${MYSQL_VERSION:-8.4.13}
     container_name: mysql
     restart: unless-stopped
     ports:

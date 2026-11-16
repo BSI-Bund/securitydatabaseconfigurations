@@ -2,7 +2,7 @@
 
 [English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
-Diese Vorlage kombiniert **MariaDB 11.8** und Adminer. Die Datenbankkonfiguration liegt in [`mariadb.cnf`](mariadb.cnf), die Compose-Datei in [`mariadb-compose/docker-compose.yml`](mariadb-compose/docker-compose.yml).
+Diese Vorlage kombiniert **MariaDB 11.8** und Adminer. Die Datenbankkonfiguration liegt in [`mariadb.cnf`](mariadb.cnf), die Compose-Datei in [`mariadb-compose/docker-compose.yml`](mariadb-compose/docker-compose.yml). Der letzte Laufzeittest erfolgte mit 11.8.3 über den beweglichen Tag `mariadb:11.8`; die [Versionszuordnung](../../README-de.md#versionsgültigkeit-und-prüfstand) nennt den Plattform-Prüfstand.
 
 - [Vorbereitung](#vorbereitung)
 - [Start und Anmeldung](#start-und-anmeldung)

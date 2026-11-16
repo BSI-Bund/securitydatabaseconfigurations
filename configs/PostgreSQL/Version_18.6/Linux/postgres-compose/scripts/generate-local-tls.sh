@@ -8,7 +8,7 @@ umask 077
 
 SSL_DIR="${SSL_DIR:-./ssl}"
 CA_DIR="${CA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/db-sec-conf/postgresql-dev-ca}"
-POSTGRES_VERSION="${POSTGRES_VERSION:-18.6}"
+POSTGRES_VERSION="${POSTGRES_VERSION:-18.7}"
 DAYS="${DAYS:-365}"
 
 mkdir -p "$SSL_DIR" "$CA_DIR"

@@ -27,14 +27,14 @@ Die Anleitungen richten sich an Administrator:innen und Entwickler:innen mit Ken
 
 ## Verfügbare Datenbanken und Betriebsmodelle
 
-Die Versionsangaben beschreiben den Stand der Vorlagen, nicht die jeweils neueste Herstellerfreigabe.
+Die Versionsangaben nennen Vorlagenbasis und zugeordnete Versionen. Der Plattform-Prüfstand und der aktuelle Image-Standard stehen in der jeweiligen Datenbank-README; daraus folgt keine Freigabe weiterer Versionen.
 
 | Datenbank | Konfigurationsstand | Enthaltene Betriebsmodelle | Einstieg |
 |-----------|---------------------|---------------------------|----------|
 | MariaDB | 11.8 | Linux mit Docker Compose; native Windows-Installation | [MariaDB](configs/MariaDB/README-de.md) |
-| MongoDB | 8.x | Linux mit Docker Compose; native Windows-Installation | [MongoDB](configs/MongoDB/README-de.md) |
-| MySQL Community Server | 8.4.6 | Linux mit Docker Compose; native Windows-Installation | [MySQL](configs/MySQL/README-de.md) |
-| PostgreSQL | 18.6 | Linux mit Docker Compose; native Windows-Installation | [PostgreSQL](configs/PostgreSQL/README-de.md) |
+| MongoDB | Linux 8.3.11; Windows 8.0 | Linux mit Docker Compose; native Windows-Installation | [MongoDB](configs/MongoDB/README-de.md) |
+| MySQL Community Server | 8.4.6; Compose auch 8.4.13 | Linux mit Docker Compose; native Windows-Installation | [MySQL](configs/MySQL/README-de.md) |
+| PostgreSQL | 18.6; Compose auch 18.7 | Linux mit Docker Compose; native Windows-Installation | [PostgreSQL](configs/PostgreSQL/README-de.md) |
 | Redis Enterprise | 8.0.x | Native Linux-Installation als Cluster | [Redis Enterprise](configs/Redis/README-de.md) |
 | Weaviate | 1.34.0 | Docker Compose; zusätzlich eigenständige Variante mit Traefik | [Weaviate](configs/Weaviate/README-de.md) |
 
@@ -52,6 +52,8 @@ configs/
 MariaDB, MongoDB, MySQL und PostgreSQL haben unterhalb der Version getrennte Ordner für `Linux/` und `Windows/`. Redis enthält eine Linux-Anleitung für Redis Enterprise. Bei Weaviate liegen die Compose-Dateien direkt im Versionsordner; die Traefik-Variante liegt in `reverse-proxy-traefik/`.
 
 Jede deutsche Anleitung hat eine englische Fassung ohne `-de` im Dateinamen. Die Dateinamen und Verzeichnisstrukturen unterscheiden sich je DBMS; die jeweilige README verlinkt die vorhandenen Dateien.
+
+Bei versionsabhängigen Änderungen an Konfiguration oder Einrichtung wird ein neuer Versionsordner angelegt. Bleibt die Vorlage gleich, nennt die Datenbank-README die zugeordneten und tatsächlich geprüften Versionen. Die [gemeinsame Regel für Versionen und Konfigurationsordner](configs/README-de.md#versionen-und-konfigurationsordner) beschreibt die Zuordnung.
 
 ## Sicherheitsziele und Betriebsaufgaben
 

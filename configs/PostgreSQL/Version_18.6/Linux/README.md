@@ -2,6 +2,8 @@
 
 [Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI-Alignment](../../../README.md#bsi-alignment)
 
+**Version mapping:** The unchanged template applies to the tested versions **18.6 and 18.7**. Directory `Version_18.6` identifies its baseline. `POSTGRES_VERSION` selects the image; the default is `18.7`. Further versions require review under the [shared version policy](../../../README.md#versions-and-configuration-folders). Windows verification is listed separately in the [database overview](../../README.md#version-applicability-and-verification).
+
 - [Security status](#security-status)
 - [Getting started](#getting-started)
 - [TLS mode](#tls-mode)
@@ -44,9 +46,11 @@ Before production use, replace all example passwords, narrow network ranges, pro
 
 ## Getting started
 
+For existing 18.x instances, read the [vendor migration notes for 18.7](https://www.postgresql.org/docs/release/18.7/) before changing images. They describe potentially necessary `REINDEX`, a new full backup when using incremental backups, and requirements for C extensions. Runtime checks for this template establish fresh-install and backup/restore behavior, not a general upgrade approval for existing data.
+
 The first command block changes from this README directory into `postgres-compose/` once. Run all subsequent shell commands there. Edit `.env` and replace all sample secrets before startup.
 
-This setup provides a PostgreSQL 18.6 instance and an Adminer web UI for local administration.
+This setup defaults to PostgreSQL 18.7 and provides an Adminer web UI for local administration.
 It is based on official images:
 
 - [PostgreSQL on Docker Hub](https://hub.docker.com/_/postgres)
@@ -111,7 +115,7 @@ For production-style deployments, replace the generated local CA and server cert
 
 ### postgres
 
-- Image `postgres:18.6`
+- Image `postgres:18.7`
 - Starts with custom `postgresql.conf` and `pg_hba.conf`
 - Initializes with scripts in `./initdb/`
 - Stores data in the `postgres_data` volume
@@ -152,7 +156,7 @@ Note: When Adminer shows `postgres` in the header, this is the Compose service/s
 Example values live in `postgres-compose/.env.example`. Change all secrets before use:
 
 ```dotenv
-POSTGRES_VERSION=18.6
+POSTGRES_VERSION=18.7
 TZ=Europe/Berlin
 DB_PORT=5432
 ADMINER_PORT=8080

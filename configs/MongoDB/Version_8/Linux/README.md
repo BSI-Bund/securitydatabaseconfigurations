@@ -2,7 +2,7 @@
 
 [Deutsch](README-de.md) · [Database overview](../../README.md) · [BSI-Alignment](../../../README.md#bsi-alignment)
 
-This template runs a single MongoDB instance. Files: [`mongod.conf`](mongod.conf) and [`mongodb-compose/docker-compose.yml`](mongodb-compose/docker-compose.yml). The moving image tag `mongo:8-noble` does not pin a patch release.
+This template runs a single MongoDB instance. Files: [`mongod.conf`](mongod.conf) and [`mongodb-compose/docker-compose.yml`](mongodb-compose/docker-compose.yml). The moving image tag `mongo:8-noble` does not pin a patch release. The last runtime test used the locally available 8.3.11 image. The [version mapping](../../README.md#version-applicability-and-verification) distinguishes this Linux verification from the Windows template targeting 8.0.
 
 - [Preparation](#preparation)
 - [Startup and initialization](#startup-and-initialization)
