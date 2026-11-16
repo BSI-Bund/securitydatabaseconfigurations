@@ -21,6 +21,12 @@ This repository contains configuration templates and operating instructions for 
 
 The guides are intended for administrators and developers familiar with the respective DBMS. Docker Compose is required only for the container setups explicitly listed below.
 
+| Use case | What should you take from the repository? |
+|----------|-------------------------------------------|
+| Harden an existing installation | Compare the parameter reference and configuration file for your DBMS version and platform with the active configuration. Adapt paths, memory settings, accounts, and network exposure. |
+| Set up a Compose example | Use the complete platform/variant directory, including configuration, Compose files, `.env.example`, and referenced helper files. The Compose file alone is insufficient because mounts use relative paths. |
+| Set up a native installation | Use the native guide and its listed configuration/init files; Redis Enterprise is configured through its management tools. |
+
 ## BSI alignment
 
 **BSI alignment applies to every database template in this repository: MariaDB, MongoDB, MySQL, PostgreSQL, Redis Enterprise, and Weaviate.** The [shared configuration overview](configs/README.md#bsi-alignment) contains the BSI references, common checklist, and implementation for each DBMS. Database-specific additions provide details within this shared framework.
@@ -31,7 +37,7 @@ Versions identify template baselines and applicable releases. Each database READ
 
 | Database | Configuration version | Included operating models | Start here |
 |----------|-----------------------|---------------------------|------------|
-| MariaDB | 11.8 | Linux with Docker Compose; native Windows installation | [MariaDB](configs/MariaDB/README.md) |
+| MariaDB | Linux 11.8.3; Windows 11.8 | Linux with Docker Compose; native Windows installation | [MariaDB](configs/MariaDB/README.md) |
 | MongoDB | Linux 8.3.11; Windows 8.0 | Linux with Docker Compose; native Windows installation | [MongoDB](configs/MongoDB/README.md) |
 | MySQL Community Server | 8.4.6; Compose also 8.4.13 | Linux with Docker Compose; native Windows installation | [MySQL](configs/MySQL/README.md) |
 | PostgreSQL | 18.6; Compose also 18.7 | Linux with Docker Compose; native Windows installation | [PostgreSQL](configs/PostgreSQL/README.md) |

@@ -234,24 +234,28 @@ Certificate generation is also described in the [TLS guide](../../../../docs/TLS
 
 ## Backup and restore
 
-RPO is the maximum acceptable data loss; RTO is the target recovery time. The restore command below overwrites data in the selected target database. Use an intended test/recovery environment and replace the example with the actual dump filename.
-
-The Compose example includes logical backup helpers:
+RPO is the maximum acceptable data loss; RTO is the target recovery time. Restore overwrites the database named in the archive. Stop applications first and use the path printed by `backup.sh`:
 
 ```bash
 ./scripts/backup.sh
-CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
+CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.XXXXXX
 ```
 
-`backup.sh` creates:
+`backup.sh` creates a separate directory with mode `0700` for every run. It contains these files with mode `0600`:
 
-- a custom-format `pg_dump` of the configured application database
-- a `pg_dumpall --globals-only` file for roles and global objects
-- a SHA-256 checksum file
+- `database.dump`: logical custom-format dump of the application database, including its database definition
+- `globals.sql`: roles and global objects from `pg_dumpall --globals-only`
+- `SHA256SUMS`: checksums for both files; published only after successful completion
 
-This supports a basic backup workflow, but it is not a full recovery concept. Define backup frequency, retention, encryption, off-host storage, restore tests, and RPO/RTO. For point-in-time recovery, add WAL archiving.
+Concurrent invocations use separate directories. Failed backups remove their incomplete directory. The helpers support database names containing letters, digits, and underscores.
 
-`restore.sh` restores only the database dump. In a new target instance, review required roles and global objects and restore them separately from `globals-*.sql` if needed. Verify checksums before restoring; the helpers neither encrypt backups nor configure a schedule.
+`restore.sh` accepts the backup directory or its `database.dump`. Before terminating connections or overwriting the database, it verifies the dump's SHA-256 checksum, reads the complete archive without executing SQL, and checks its database name against `POSTGRES_DB` and `CONFIRM_RESTORE`. Validation uses a private temporary copy of the dump on the host; allow enough free disk space. Older flat dumps remain usable with their original `SHA256SUMS-<timestamp>.txt` file.
+
+Restore then uses the database definition from the archive, restoring its owner, database privileges, comment, and database-specific settings. Restoring under a different database name is not supported by this helper. Required roles must exist in the target instance; the software files for extensions and other external dependencies must be available. Global objects are not imported automatically; review the matching `globals.sql` and restore it separately if needed.
+
+Use backups from trusted sources only: checksums detect corruption but do not authenticate the sender. Successful validation does not replace a restore test with your own data and dependencies. SQL errors after restoration begins can abort the operation; there is no automatic complete rollback.
+
+Backup frequency, retention, encryption, off-host storage, restore tests, and RPO/RTO remain operational responsibilities. The helpers neither encrypt backups nor schedule them. Configure WAL archiving for point-in-time recovery.
 
 ---
 

@@ -2,6 +2,6 @@
 
 [Deutsch](README-de.md) · [Linux guide](../../README.md)
 
-This optional directory can hold temporary restore files. `scripts/restore.sh` accepts the dump path as an argument and does not automatically use this directory.
+This optional directory can hold supplied backups. `scripts/restore.sh` accepts a backup directory or dump path. Its private validation copy is created under `TMPDIR` or `/tmp`; this directory is not used for that automatically.
 
-Do not commit restore material. Verify checksums and test restores in a separate environment. The restore helper overwrites the selected database and requires `CONFIRM_RESTORE` to match its name.
+Do not commit restore material. The helper checks the dump checksum, complete readability, and database name before overwriting. The matching checksum file is required; `CONFIRM_RESTORE` must match the database name in the archive. Test restoration, including database privileges, in a separate environment.

@@ -21,6 +21,12 @@ Dieses Repository enthält Konfigurationsvorlagen und Betriebsanleitungen für M
 
 Die Anleitungen richten sich an Administrator:innen und Entwickler:innen mit Kenntnissen des jeweiligen DBMS. Docker Compose wird nur für die ausdrücklich genannten Container-Setups benötigt.
 
+| Einsatz | Was aus dem Repository übernehmen? |
+|--------|------------------------------------|
+| Bestehende Installation härten | Die zur DBMS-Version und Plattform passende Parameterreferenz und Konfigurationsdatei mit der aktiven Konfiguration abgleichen. Pfade, Speicherwerte, Konten und Netzfreigaben anpassen. |
+| Compose-Beispiel aufbauen | Den vollständigen Plattform-/Variantenordner mit Konfiguration, Compose-Dateien, `.env.example` und referenzierten Hilfsdateien verwenden. Die Compose-Datei allein reicht wegen relativer Mount-Pfade nicht aus. |
+| Native Installation einrichten | Die native Anleitung und die dort genannten Konfigurations-/Init-Dateien verwenden; Redis Enterprise wird über seine Verwaltungswerkzeuge eingerichtet. |
+
 ## BSI-Alignment
 
 **Das BSI-Alignment gilt für alle Datenbankvorlagen dieses Repositories: MariaDB, MongoDB, MySQL, PostgreSQL, Redis Enterprise und Weaviate.** Die [gemeinsame Konfigurationsübersicht](configs/README-de.md#bsi-alignment) enthält die BSI-Referenzen, die gemeinsame Checkliste und die Umsetzung je DBMS. Datenbankspezifische Ergänzungen konkretisieren diesen gemeinsamen Rahmen.
@@ -31,7 +37,7 @@ Die Versionsangaben nennen Vorlagenbasis und zugeordnete Versionen. Der Plattfor
 
 | Datenbank | Konfigurationsstand | Enthaltene Betriebsmodelle | Einstieg |
 |-----------|---------------------|---------------------------|----------|
-| MariaDB | 11.8 | Linux mit Docker Compose; native Windows-Installation | [MariaDB](configs/MariaDB/README-de.md) |
+| MariaDB | Linux 11.8.3; Windows 11.8 | Linux mit Docker Compose; native Windows-Installation | [MariaDB](configs/MariaDB/README-de.md) |
 | MongoDB | Linux 8.3.11; Windows 8.0 | Linux mit Docker Compose; native Windows-Installation | [MongoDB](configs/MongoDB/README-de.md) |
 | MySQL Community Server | 8.4.6; Compose auch 8.4.13 | Linux mit Docker Compose; native Windows-Installation | [MySQL](configs/MySQL/README-de.md) |
 | PostgreSQL | 18.6; Compose auch 18.7 | Linux mit Docker Compose; native Windows-Installation | [PostgreSQL](configs/PostgreSQL/README-de.md) |

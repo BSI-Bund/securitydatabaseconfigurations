@@ -61,7 +61,7 @@ Replace the placeholder with a configured API key. The readiness endpoint checks
 
 | Variable                           | Purpose                                          | Recommendation |
 |------------------------------------|--------------------------------------------------|----------------|
-| `WEAVIATE_VERSION`                 | Pin Weaviate version (avoid `latest`)            | `1.34.0` |
+| `WEAVIATE_VERSION` | Weaviate version tag | `1.34.0`; follow the verified version mapping |
 | `WEAVIATE_HOST`                    | Bind address inside container                    | `0.0.0.0` |
 | `WEAVIATE_PORT`                    | API port                                         | `8080` |
 | `WEAVIATE_SCHEME`                  | Internal protocol                                | `http` |

@@ -50,7 +50,7 @@ services:
       - proxy
 
   traefik:
-    image: traefik:v3.5
+    image: traefik:v3.5.6
     environment:
       WEAVIATE_DOMAIN: ${WEAVIATE_DOMAIN}
       WEAVIATE_PORT: ${WEAVIATE_PORT}
@@ -92,7 +92,7 @@ services:
       - proxy
 
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.7.0
     container_name: ollama
     restart: unless-stopped
     profiles: ["ollama"]  # optional; start with: docker compose --profile ollama up -d

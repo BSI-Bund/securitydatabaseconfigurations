@@ -2,7 +2,7 @@
 
 [English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
-Diese Vorlage betreibt eine einzelne MongoDB-Instanz. Die Dateien sind [`mongod.conf`](mongod.conf) und [`mongodb-compose/docker-compose.yml`](mongodb-compose/docker-compose.yml). Der Image-Tag `mongo:8-noble` ist beweglich und legt keine konkrete Patchversion fest. Der letzte Laufzeittest erfolgte mit dem lokal vorhandenen Image 8.3.11. Die [Versionszuordnung](../../README-de.md#versionsgültigkeit-und-prüfstand) unterscheidet diesen Linux-Prüfstand von der Windows-Vorlage für 8.0.
+Diese Vorlage betreibt eine einzelne MongoDB-Instanz. Die Dateien sind [`mongod.conf`](mongod.conf) und [`mongodb-compose/docker-compose.yml`](mongodb-compose/docker-compose.yml). Das Compose-Beispiel verwendet den Versionstag `mongo:8.3.11-noble`. Die [Versionszuordnung](../../README-de.md#versionsgültigkeit-und-prüfstand) unterscheidet diesen Linux-Prüfstand von der Windows-Vorlage für 8.0.
 
 - [Vorbereitung](#vorbereitung)
 - [Start und Initialisierung](#start-und-initialisierung)

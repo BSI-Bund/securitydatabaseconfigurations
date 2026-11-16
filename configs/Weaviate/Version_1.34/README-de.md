@@ -61,7 +61,7 @@ Den Platzhalter durch einen konfigurierten API-Key ersetzen. Der Readiness-Endpu
 
 | Variable                           | Zweck                                              | Empfehlung |
 |-----------------------------------|----------------------------------------------------|-------------|
-| `WEAVIATE_VERSION`                | Feste Weaviate-Version (kein `latest`)             | `1.34.0` |
+| `WEAVIATE_VERSION` | Weaviate-Versionstag | `1.34.0`; geprüfte Zuordnung beachten |
 | `WEAVIATE_HOST`                   | Bind-Adresse im Container                          | `0.0.0.0` |
 | `WEAVIATE_PORT`                   | API-Port                                           | `8080` |
 | `WEAVIATE_SCHEME`                 | Protokoll intern                                   | `http` |

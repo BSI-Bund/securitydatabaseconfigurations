@@ -234,24 +234,28 @@ Zertifikatserstellung ist auch in der [TLS-Anleitung](../../../../docs/TLS-de.md
 
 ## Backup und Restore
 
-RPO bezeichnet den maximal akzeptablen Datenverlust, RTO die angestrebte Wiederherstellungszeit. Der Restore-Befehl unten überschreibt Daten in der gewählten Zieldatenbank; dafür eine vorgesehene Test-/Wiederherstellungsumgebung verwenden und den tatsächlichen Dump-Dateinamen einsetzen.
-
-Das Compose-Beispiel enthält Hilfsskripte für logische Backups:
+RPO bezeichnet den maximal akzeptablen Datenverlust, RTO die angestrebte Wiederherstellungszeit. Der Restore überschreibt die im Archiv gespeicherte Datenbank. Anwendungen vorher anhalten und den von `backup.sh` ausgegebenen Pfad einsetzen:
 
 ```bash
 ./scripts/backup.sh
-CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
+CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.XXXXXX
 ```
 
-`backup.sh` erstellt:
+`backup.sh` legt für jeden Lauf ein eigenes Verzeichnis mit Modus `0700` an. Darin liegen mit Modus `0600`:
 
-- einen `pg_dump` im Custom-Format für die konfigurierte Anwendungsdatenbank
-- eine `pg_dumpall --globals-only`-Datei für Rollen und globale Objekte
-- eine SHA-256-Checksum-Datei
+- `database.dump`: logischer Custom-Format-Dump der Anwendungsdatenbank einschließlich Datenbankdefinition
+- `globals.sql`: Rollen und globale Objekte aus `pg_dumpall --globals-only`
+- `SHA256SUMS`: Prüfsummen beider Dateien; wird erst nach erfolgreichem Abschluss bereitgestellt
 
-Das unterstützt einen einfachen Backup-Ablauf, ersetzt aber kein vollständiges Recovery-Konzept. Backup-Frequenz, Aufbewahrung, Verschlüsselung, externe Ablage, Restore-Tests und RPO/RTO müssen festgelegt werden. Für Point-in-Time-Recovery muss WAL-Archivierung ergänzt werden.
+Gleichzeitige Aufrufe verwenden getrennte Verzeichnisse. Bei einem fehlgeschlagenen Backup wird das unvollständige Verzeichnis entfernt. Die Hilfsskripte unterstützen Datenbanknamen aus Buchstaben, Ziffern und Unterstrichen.
 
-`restore.sh` stellt nur den Datenbank-Dump wieder her. In einer neuen Zielinstanz müssen benötigte Rollen und globale Objekte vorab separat geprüft und gegebenenfalls aus der `globals-*.sql` eingespielt werden. Die Checksum-Datei vor dem Restore prüfen; die Hilfsskripte verschlüsseln Backups nicht und richten keinen Zeitplan ein.
+`restore.sh` nimmt das Sicherungsverzeichnis oder dessen `database.dump` entgegen. Vor dem Beenden von Verbindungen und Überschreiben der Datenbank prüft es die SHA-256-Prüfsumme des Dumps, liest das vollständige Archiv ohne SQL-Ausführung und vergleicht dessen Datenbanknamen mit `POSTGRES_DB` und `CONFIRM_RESTORE`. Für diese Prüfung wird eine private temporäre Kopie des Dumps auf dem Host angelegt; entsprechend freien Speicher vorsehen. Auch ältere flache Dumps bleiben mit ihrer ursprünglichen `SHA256SUMS-<Zeitstempel>.txt` nutzbar.
+
+Der anschließende Restore verwendet die Datenbankdefinition aus dem Archiv und stellt damit auch Eigentümer, Datenbankrechte, Kommentar und datenbankspezifische Einstellungen wieder her. Wiederherstellung unter einem anderen Datenbanknamen ist über diesen Helfer nicht vorgesehen. Benötigte Rollen müssen in der Zielinstanz vorhanden sein; die Softwaredateien verwendeter Erweiterungen und andere externe Abhängigkeiten müssen bereitstehen. Globale Objekte werden nicht automatisch eingespielt; die passende `globals.sql` separat prüfen und bei Bedarf einspielen.
+
+Nur Sicherungen aus vertrauenswürdiger Quelle verwenden: Prüfsummen erkennen Beschädigungen, authentifizieren aber den Absender nicht. Eine erfolgreiche Vorabprüfung ersetzt keinen Restore-Test mit den eigenen Daten und Abhängigkeiten. SQL-Fehler nach Beginn der Wiederherstellung können zum Abbruch führen; es gibt keinen automatischen vollständigen Rollback.
+
+Backup-Frequenz, Aufbewahrung, Verschlüsselung, externe Ablage, Restore-Tests und RPO/RTO bleiben Betriebsaufgaben. Die Hilfsskripte richten weder Verschlüsselung noch Zeitplanung ein. Für Point-in-Time-Recovery zusätzlich WAL-Archivierung einrichten.
 
 ---
 

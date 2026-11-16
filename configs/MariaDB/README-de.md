@@ -15,7 +15,7 @@ Der Ordner `Version_11` enthält aktuell die Vorlage für die 11.8-Reihe. Daraus
 
 | Plattform / Variante | Versionszuordnung | Prüfstand am 16.11.2026 |
 |---|---|---|
-| Linux mit Compose | 11.8.3 | Laufzeitprüfung mit dem lokal vorhandenen Image `mariadb:11.8`; der Tag ist beweglich. |
+| Linux mit Compose | 11.8.3 | Image-Standard `mariadb:11.8.3`; laufzeitgeprüft. |
 | Windows nativ | 11.8 | Konfiguration statisch geprüft; kein nativer Laufzeittest. |
 
 Neue Zuordnungen und abweichende Vorlagen folgen der [gemeinsamen Versionsregel](../README-de.md#versionen-und-konfigurationsordner).

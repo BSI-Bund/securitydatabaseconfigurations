@@ -15,7 +15,7 @@ Directory `Version_11` currently contains the template for the 11.8 series. This
 
 | Platform / variant | Applicable versions | Verification as of 2026-11-16 |
 |---|---|---|
-| Linux with Compose | 11.8.3 | Runtime verification with the locally available `mariadb:11.8` image; this is a moving tag. |
+| Linux with Compose | 11.8.3 | Image default `mariadb:11.8.3`; runtime-tested. |
 | Native Windows | 11.8 | Configuration reviewed statically; no native runtime test. |
 
 New version mappings and differing templates follow the [shared version policy](../README.md#versions-and-configuration-folders).

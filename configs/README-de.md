@@ -79,6 +79,8 @@ Ein Versionsordner steht für eine bestimmte Konfiguration und deren Einrichtung
 - **Prüfstand angeben:** Linux-Compose, native Windows-Installation und native Cluster getrennt ausweisen. Einen Image-Tag ohne festgelegte Patchversion als solchen kennzeichnen. Ein erfolgreicher Test mit einem beweglichen Tag belegt keine Kompatibilität mit allen Versionen, auf die dieser Tag später zeigt.
 - **Upgrades separat bewerten:** Kompatibilität einer Neuinstallation bestätigt noch kein Upgrade bestehender Daten. Herstellerhinweise, nötige Zwischenschritte sowie Backup und Restore gehören in die jeweilige Anleitung. Bei einer neuen Zuordnung auch Einstiegstabellen und beide Sprachfassungen aktualisieren.
 
+**Image-Versionen:** Die Compose-Beispiele verwenden lesbare Versionstags, die zum dokumentierten Prüfstand passen, beispielsweise `postgres:18.7`. Versionsvariablen in `.env` enthalten nur den Tag, etwa `POSTGRES_VERSION=18.7`. Die Versionszuordnung beschreibt die Gültigkeit der Konfigurationsempfehlungen; sie empfiehlt nicht, einen älteren Patchstand dauerhaft zu betreiben. Sicherheitsupdates vor der Übernahme auf Konfigurations- und Upgrade-Änderungen prüfen. Tags können beim Hersteller neu gebaut werden; für exakt reproduzierbare eigene Deployments kann zusätzlich ein [Image-Digest](https://docs.docker.com/dhi/explore/security-concepts/digests/) festgelegt werden. Das ist eine Betriebsentscheidung und keine Voraussetzung zum Verwenden dieser Vorlagen. Bestehende `.env`-Dateien werden durch ein Repository-Update nicht automatisch angepasst.
+
 Die Versionszuordnung in der jeweiligen Datenbank-README ist maßgeblich. Die gemeinsamen BSI-Ziele und Freigabekriterien gelten für jede neue oder weiterverwendete Variante.
 
 ## Datenbankordner

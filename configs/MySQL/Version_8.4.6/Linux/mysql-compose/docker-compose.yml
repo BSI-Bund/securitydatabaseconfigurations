@@ -9,7 +9,7 @@ services:
     container_name: mysql
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${DB_PORT:-3306}:3306" # for container communication
+      - "127.0.0.1:${DB_PORT:-3306}:3306" # local host access
     environment:
       TZ: "${TZ:-Europe/Berlin}"
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
@@ -53,7 +53,7 @@ services:
       - ../my.cnf:/etc/mysql/conf.d/my.cnf:ro
 
   adminer:
-    image: adminer:latest
+    image: adminer:5.4.0
     container_name: adminer
     restart: unless-stopped
     ports:

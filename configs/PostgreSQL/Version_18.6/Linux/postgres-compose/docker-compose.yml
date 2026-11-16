@@ -36,11 +36,10 @@ services:
       - ./initdb:/docker-entrypoint-initdb.d:ro
       - ../postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ../pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-      # Enable after creating certificates and setting ssl = on:
-      # - ./ssl:/etc/postgresql/ssl:ro
+      # For TLS, prepare certificates and use docker-compose.tls.yml.
 
   adminer:
-    image: adminer:latest
+    image: adminer:5.4.0
     container_name: postgres-adminer
     restart: unless-stopped
     ports:

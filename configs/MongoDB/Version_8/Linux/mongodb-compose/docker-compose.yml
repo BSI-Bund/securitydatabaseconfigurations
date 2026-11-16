@@ -1,7 +1,6 @@
 # docker-compose.yml
-# MongoDB 8
+# MongoDB 8.3.11 example; see ../README.md for version applicability
 # https://hub.docker.com/_/mongo
-# https://hub.docker.com/_/adminer
 # Start:
 # docker compose up -d
 # Stop:
@@ -10,7 +9,7 @@
 # docker compose logs -f
 services:
   mongodb:
-    image: mongo:8-noble
+    image: mongo:8.3.11-noble
     container_name: mongodb
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE}

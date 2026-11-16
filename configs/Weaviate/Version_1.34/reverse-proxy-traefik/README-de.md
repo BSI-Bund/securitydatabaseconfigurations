@@ -2,7 +2,7 @@
 
 [English](README.md) · [Weaviate-Basisvariante](../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
 
-Dieses eigenständige Compose-Setup stellt Weaviate über Traefik v3.5 per HTTPS bereit. Es verwendet das eigene Daten-Volume `weaviate_data_proxy`; Daten der Basisvariante werden nicht automatisch übernommen.
+Dieses eigenständige Compose-Setup stellt Weaviate über Traefik v3.5.6 per HTTPS bereit. Es verwendet das eigene Daten-Volume `weaviate_data_proxy`; Daten der Basisvariante werden nicht automatisch übernommen.
 
 - [Vorbereitung und Netzwerkzugriff](#vorbereitung-und-netzwerkzugriff)
 - [Zertifikat und Hostnamen](#zertifikat-und-hostnamen)
@@ -92,7 +92,7 @@ docker compose exec ollama ollama pull nomic-embed-text
 docker compose exec ollama ollama pull llama3.2
 ```
 
-Der Endpoint **aus Weaviate** ist `http://ollama:11434`. Der Endpoint **für den Client auf dem Host** ist `http://127.0.0.1:11434`. Modellnamen und Endpoints werden pro Collection konfiguriert. Das Ollama-Image ist in dieser Vorlage mit `latest` referenziert; vor reproduzierbarem Einsatz einen passenden Versionsstand festlegen.
+Der Endpoint **aus Weaviate** ist `http://ollama:11434`. Der Endpoint **für den Client auf dem Host** ist `http://127.0.0.1:11434`. Modellnamen und Endpoints werden pro Collection konfiguriert. Der optionale Service verwendet als Beispiel `ollama/ollama:0.7.0`. Eine zur eigenen Modellanbindung passende Version auswählen und prüfen; Modellinferenz gehört nicht zum dokumentierten Laufzeitnachweis.
 
 ## Python-Beispiele
 

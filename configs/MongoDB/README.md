@@ -9,7 +9,7 @@ Documented targets: **Linux 8.3.11 / Windows 8.0**, directory [`Version_8`](Vers
 - [Linux with Docker Compose](Version_8/Linux/README.md)
 - [Native Windows](Version_8/Windows/README.md)
 
-The Compose example uses the moving image tag `mongo:8-noble`; it does not pin a specific patch version.
+The Compose example uses version tag `mongo:8.3.11-noble`.
 
 ## Version applicability and verification
 
@@ -17,7 +17,7 @@ Directory `Version_8` contains separate Linux and Windows target versions. The d
 
 | Platform / variant | Applicable versions | Verification as of 2026-11-16 |
 |---|---|---|
-| Linux with Compose | 8.3.11 | Runtime verification with the locally available `mongo:8-noble` image; this is a moving tag. |
+| Linux with Compose | 8.3.11 | Image default `mongo:8.3.11-noble`; runtime-tested. |
 | Native Windows | 8.0 | Configuration and bootstrap guards checked; no native Windows runtime test. |
 
 New version mappings and differing templates follow the [shared version policy](../README.md#versions-and-configuration-folders).

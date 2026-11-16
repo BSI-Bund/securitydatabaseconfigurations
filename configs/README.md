@@ -79,6 +79,8 @@ A version folder represents a particular configuration and its setup procedure. 
 - **State verification scope:** Distinguish Linux Compose, native Windows installations, and native clusters. Identify image tags that do not pin a patch version. A successful test with a moving tag does not establish compatibility with every version that tag might reference later.
 - **Assess upgrades separately:** Fresh-install compatibility does not establish an upgrade path for existing data. Document vendor instructions, intermediate steps, and backup/restore in the respective guide. Update entry tables and both languages when extending a version mapping.
 
+**Image versions:** Compose examples use readable version tags that match the documented verification, such as `postgres:18.7`. Version variables in `.env` contain just the tag, for example `POSTGRES_VERSION=18.7`. The version mapping describes where the configuration recommendations apply; it does not recommend running an older patch indefinitely. Review security updates for configuration and upgrade changes before adopting them. Vendors can rebuild tags; an [image digest](https://docs.docker.com/dhi/explore/security-concepts/digests/) can additionally be set for exactly reproducible deployments. This is an operational choice, not a prerequisite for using these templates. Repository updates do not automatically modify existing `.env` files.
+
 The version mapping in each database README is authoritative. Shared BSI objectives and release criteria apply to every new or reused variant.
 
 ## Database folders
