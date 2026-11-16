@@ -1,10 +1,11 @@
 """
-Weaviate + Ollama demo client (REST + gRPC) for secure reverse-proxy setup.
+Weaviate + Ollama demo client using direct local HTTP and gRPC endpoints.
+Uses API-key authentication; this example does not test Traefik or TLS.
 Requires Ollama models and Weaviate 1.34.
 
 Features:
 - Preflight check: verifies Ollama connectivity and pulled models
-- Works with Traefik-exposed Weaviate (REST) and local gRPC
+- Connects directly to local Weaviate over HTTP and gRPC
 - Uses the generative API compatible with the installed weaviate-client
 """
 

@@ -1,5 +1,5 @@
 # docker-compose.tls.yml
-# TLS override for PostgreSQL 18.6.
+# TLS override for the PostgreSQL template verified with 18.6 and 18.7.
 #
 # Generate certificates first:
 #   ./scripts/generate-local-tls.sh
@@ -16,4 +16,34 @@ services:
     volumes:
       - ../postgresql-tls.conf:/etc/postgresql/postgresql-tls.conf:ro
       - ../pg_hba-tls.conf:/etc/postgresql/pg_hba-tls.conf:ro
-      - ./ssl:/etc/postgresql/ssl:ro
+      - type: bind
+        source: ./ssl/server.crt
+        target: /etc/postgresql/ssl/server.crt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssl/server.key
+        target: /etc/postgresql/ssl/server.key
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssl/ca.crt
+        target: /etc/postgresql/ssl/ca.crt
+        read_only: true
+        bind:
+          create_host_path: false
+
+  adminer:
+    environment:
+      PGSSLMODE: verify-full
+      PGSSLROOTCERT: /etc/adminer/tls/ca.crt
+    volumes:
+      - ./adminer-tls.php:/var/www/html/plugins-enabled/tls.php:ro
+      - type: bind
+        source: ./ssl/ca.crt
+        target: /etc/adminer/tls/ca.crt
+        read_only: true
+        bind:
+          create_host_path: false

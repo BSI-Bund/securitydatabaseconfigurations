@@ -10,7 +10,7 @@ socket    = /var/run/mysqld/mysqld.sock       # Unix domain socket
 pid-file  = /var/run/mysqld/mysqld.pid        # PID file
 
 ### Network & security ###
-bind_address        = 0.0.0.0                 # Local connections only (0.0.0.0 = remote access, incl. containers)
+bind_address        = 0.0.0.0                 # All container interfaces; Compose publishes only on host loopback
 skip_networking     = 0                       # 1 = TCP/IP off (socket only)
 skip_name_resolve   = 1                       # No DNS lookups → faster & safer
 max_connections     = 200                     # Max concurrent connections
@@ -22,12 +22,12 @@ symbolic-links      = 0                       # Prevent symlink abuse
 innodb_buffer_pool_size        = 4G           # 50–80% of RAM
 innodb_log_file_size           = 256M         # Redo log size (workload dependent)
 innodb_file_per_table          = 1            # Separate .ibd per table
-innodb_flush_log_at_trx_commit = 1            # 1 = full ACID (2 = faster, less durable)
+innodb_flush_log_at_trx_commit = 1            # Write and flush redo log at commit; 2 can lose committed data
 # innodb_flush_method           = O_DIRECT    # Optional on Linux, reduces OS cache duplication
 
 ### Character sets ###
 character_set_server = utf8mb4                # Recommended since MariaDB 10.6+
-collation_server     = utf8mb4_general_ci     # Default; choose locale-specific if needed
+collation_server     = utf8mb4_general_ci     # Example collation; choose one matching the application
 
 ### Logging ###
 log_error                   = /var/log/mysql/error.log
@@ -50,7 +50,7 @@ expire_logs_days = 7                          # Delete binlogs after 7 days
 ssl-ca   = /etc/mysql/ssl/ca-cert.pem
 ssl-cert = /etc/mysql/ssl/server-cert.pem
 ssl-key  = /etc/mysql/ssl/server-key.pem
-require_secure_transport = ON     # Enforces TLS for all clients
+require_secure_transport = ON     # Requires TLS for TCP; local Unix socket connections remain allowed
 
 
 ### TLS/SSL for the client (optional) ###
@@ -60,6 +60,7 @@ require_secure_transport = ON     # Enforces TLS for all clients
 #ssl-key  = /etc/mysql/ssl/client-key.pem
 #ssl-verify-server-cert
 
+# Compatibility option group read by mariadb-dump
 [mysqldump]
 quick
 quote-names
@@ -67,6 +68,6 @@ max_allowed_packet = 64M                      # Allow larger dumps
 
 ### Notes ###
 # - Certificates with restrictive permissions (chmod 600, mysql user).
-# - CN/SAN of the server certificate should match the hostname.
+# - Server certificate SANs must cover the hostname used by clients.
 # - Restart MariaDB after config/cert changes.
 # - Enforce TLS via SQL: ALTER USER 'app'@'%' REQUIRE SSL;

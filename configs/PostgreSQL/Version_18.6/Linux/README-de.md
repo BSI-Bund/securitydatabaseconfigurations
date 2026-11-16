@@ -1,23 +1,32 @@
-# <img src="https://www.vectorlogo.zone/logos/postgresql/postgresql-icon.svg" alt="PostgreSQL Logo" width="26"/> PostgreSQL - Linux (Docker Compose)
+# PostgreSQL - Linux (Docker Compose)
+
+[English](README.md) · [Datenbankübersicht](../../README-de.md) · [BSI-Alignment](../../../README-de.md#bsi-alignment)
+
+**Versionszuordnung:** Die unveränderte Vorlage gilt für die geprüften Versionen **18.6 und 18.7**. Der Ordner `Version_18.6` bezeichnet die Vorlagenbasis. `POSTGRES_VERSION` wählt das Image; Standard ist `18.7`. Weitere Versionen müssen nach der [gemeinsamen Versionsregel](../../../README-de.md#versionen-und-konfigurationsordner) geprüft werden. Der Windows-Prüfstand steht separat in der [Datenbankübersicht](../../README-de.md#versionsgültigkeit-und-prüfstand).
 
 - [Sicherheitsstatus](#sicherheitsstatus)
 - [Start](#start)
 - [TLS-Modus](#tls-modus)
 - [Services](#services)
+  - [postgres](#postgres)
+  - [adminer](#adminer)
 - [Adminer-Login](#adminer-login)
 - [Umgebungsvariablen](#umgebungsvariablen)
 - [Parameterreferenz](#parameterreferenz)
+  - [Netzwerk und Authentifizierung](#netzwerk-und-authentifizierung)
+  - [TLS](#tls)
+  - [Speicher und Dauerhaftigkeit](#speicher-und-dauerhaftigkeit)
+  - [Logging und Diagnose](#logging-und-diagnose)
+  - [Laufzeitlimits](#laufzeitlimits)
 - [Backup und Restore](#backup-und-restore)
 - [BSI-Alignment](#bsi-alignment)
 - [Volumes und Ports](#volumes-und-ports)
 - [Betrieb](#betrieb)
 - [Referenzen](#referenzen)
 
----
-
 ## Sicherheitsstatus
 
-Dies ist eine sichere Baseline, aber keine Produktionsgarantie. Enthalten sind:
+Die Basisvariante ist für abgegrenzte lokale Tests vorgesehen. Für produktive TCP-Verbindungen die TLS-Variante verwenden und die gemeinsamen Freigabekriterien erfüllen. Enthalten sind:
 
 - Host-Port-Bindings nur auf localhost in Docker Compose
 - SCRAM-SHA-256 für Passwortauthentifizierung
@@ -37,7 +46,11 @@ Vor produktiver Nutzung: Beispielpasswörter ersetzen, Netzwerkbereiche enger fa
 
 ## Start
 
-Dieses Setup stellt PostgreSQL 18.6 und eine Adminer-Weboberfläche für lokale Administration bereit.
+Für bestehende 18.x-Instanzen die [Herstellerhinweise zu 18.7](https://www.postgresql.org/docs/release/18.7/) vor dem Image-Wechsel lesen. Dort werden unter anderem gegebenenfalls nötiges `REINDEX`, eine neue Vollsicherung bei inkrementellen Backups und Anforderungen an C-Erweiterungen beschrieben. Die Laufzeittests dieser Vorlage belegen Neuinstallation sowie Backup/Restore, keine allgemeine Upgrade-Freigabe für Bestandsdaten.
+
+Der erste Befehlsblock wechselt aus diesem README-Verzeichnis einmalig nach `postgres-compose/`. Alle weiteren Shell-Befehle dieser Anleitung werden dort ausgeführt. `.env` vor dem Start bearbeiten und sämtliche Beispiel-Secrets ersetzen.
+
+Dieses Setup stellt standardmäßig PostgreSQL 18.7 und eine Adminer-Weboberfläche für lokale Administration bereit.
 Es basiert auf offiziellen Images:
 
 - [PostgreSQL auf Docker Hub](https://hub.docker.com/_/postgres)
@@ -51,6 +64,8 @@ docker compose up -d
 
 Das Standardsetup ist bewusst ohne Zertifikate startfähig. PostgreSQL wird am Host nur auf `127.0.0.1:${DB_PORT:-5432}` veröffentlicht.
 
+Die Init-Skripte laufen nur bei einem leeren Daten-Volume. Änderungen an `.env` ändern keine bereits angelegten Datenbanken oder Rollenpasswörter; bestehende Rollenpasswörter in einer administrativen SQL-Sitzung ändern.
+
 ---
 
 ## TLS-Modus
@@ -60,18 +75,18 @@ PostgreSQL kann TLS- und Nicht-TLS-Verbindungen auf demselben Port annehmen. Um 
 Für lokale Tests:
 
 ```bash
-cd postgres-compose
 ./scripts/up-local-tls.sh
 ```
 
 Dieses Skript erzeugt lokale Zertifikate, falls sie fehlen, startet die TLS-Compose-Variante, wartet auf den Healthy-Status, prüft eine TLS-Verbindung und prüft, dass Nicht-TLS-TCP-Zugriff abgelehnt wird.
 
-Adminer kann im TLS-Modus weiter genutzt werden. Der Server bleibt `postgres`; als Login sind `app_admin` oder `app_reader` vorgesehen. PostgreSQL akzeptiert TCP-Verbindungen dann nur verschlüsselt. Die Adminer-Weboberfläche selbst bleibt lokal per HTTP auf `127.0.0.1:8080` erreichbar.
+Der Test verwendet Datenbankname und Anwendungspasswort aus der wirksamen Container-Konfiguration, also auch nach Anpassung von `.env`. Für ein anderes Prüfkonto `POSTGRES_TLS_TEST_USER` und `POSTGRES_TLS_TEST_PASSWORD` setzen.
+
+Adminer kann im TLS-Modus weiter genutzt werden. Der Server bleibt `postgres`; als Login sind `app_admin` oder `app_reader` vorgesehen. Der Override erzwingt für Adminers Datenbankverbindung `verify-full` und bindet nur das öffentliche CA-Zertifikat in Adminer ein. Das Serverzertifikat muss deshalb auch den SAN `DNS:postgres` enthalten. PostgreSQL akzeptiert TCP-Verbindungen dann nur verschlüsselt. Die Adminer-Weboberfläche selbst bleibt ausschließlich für lokale Tests per HTTP auf `127.0.0.1:8080` erreichbar.
 
 Manueller TLS-Ablauf:
 
 ```bash
-cd postgres-compose
 ./scripts/generate-local-tls.sh
 docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
 ```
@@ -83,6 +98,8 @@ Die TLS-Variante nutzt:
 - `./ssl/server.crt`
 - `./ssl/server.key`
 - `./ssl/ca.crt`
+
+Nur diese drei Zertifikats-/Schlüsseldateien werden einzeln in den Datenbankcontainer gemountet. Der Generator speichert die private Entwicklungs-CA separat unter `${XDG_DATA_HOME:-$HOME/.local/share}/db-sec-conf/postgresql-dev-ca`; mit `CA_DIR` kann ein anderes geschütztes Verzeichnis außerhalb des Repositorys gewählt werden. Eine bestehende CA dort wird wiederverwendet. Ältere `ssl/ca.key`-Dateien außerhalb des bereitgestellten Zertifikatsverzeichnisses sichern; sie werden vom TLS-Override nicht eingebunden.
 
 Client-Beispiel mit Zertifikatsprüfung:
 
@@ -98,7 +115,7 @@ Für produktionsnahe Deployments die lokal generierte CA und das Serverzertifika
 
 ### postgres
 
-- Image `postgres:18.6`
+- Image `postgres:18.7`
 - Startet mit eigener `postgresql.conf` und `pg_hba.conf`
 - Initialisiert mit Skripten aus `./initdb/`
 - Speichert Daten im Volume `postgres_data`
@@ -116,7 +133,7 @@ Für produktionsnahe Deployments die lokal generierte CA und das Serverzertifika
 
 ## Adminer-Login
 
-Empfohlene Login-Daten für das lokale Beispiel:
+Die Tabelle zeigt die Vorlagenwerte. Für den Login die tatsächlich in `.env` gesetzten Werte verwenden:
 
 | Feld | Schreibzugriff | Nur Lesen |
 |------|----------------|-----------|
@@ -130,14 +147,16 @@ Der Benutzer `postgres` ist ein Superuser. Er wird vom Container zum Initialisie
 
 Hinweis: Wenn Adminer oben `postgres` anzeigt, ist damit der Compose-Service/Servername gemeint. Der angemeldete Datenbankbenutzer steht separat in der URL bzw. im Login-Formular.
 
+`app_admin` und `app_reader` sind Rollen mit `LOGIN`, also Datenbankbenutzer. `app_admin` erhält `CREATE` im Schema `public`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` auf vorhandenen Tabellen sowie Sequenzrechte. `app_reader` erhält `SELECT`. `app_admin` besitzt keine allgemeinen Administrationsrechte; `ALTER` und `DROP` setzen im Regelfall Objekteigentum voraus. Die vom Bootstrap-Konto angelegte Tabelle `public.users` gehört weiterhin diesem Konto.
+
 ---
 
 ## Umgebungsvariablen
 
 Beispielwerte liegen in `postgres-compose/.env.example`. Alle Secrets vor Nutzung ändern:
 
-```bash
-POSTGRES_VERSION=18.6
+```dotenv
+POSTGRES_VERSION=18.7
 TZ=Europe/Berlin
 DB_PORT=5432
 ADMINER_PORT=8080
@@ -174,7 +193,7 @@ PGDATA=/var/lib/postgresql/18/docker
 | `ssl_ca_file` | CA-Zertifikat | `/etc/postgresql/ssl/ca.crt` |
 | `ssl_min_protocol_version` | Minimale TLS-Version | `TLSv1.2` oder strenger, falls Clients es unterstützen |
 
-Zertifikatserstellung ist auch in der Repository-[README](../../../../README-de.md#-tls-konfiguration) beschrieben.
+Zertifikatserstellung ist auch in der [TLS-Anleitung](../../../../docs/TLS-de.md) beschrieben.
 
 ### Speicher und Dauerhaftigkeit
 
@@ -215,31 +234,34 @@ Zertifikatserstellung ist auch in der Repository-[README](../../../../README-de.
 
 ## Backup und Restore
 
-Das Compose-Beispiel enthält Hilfsskripte für logische Backups:
+RPO bezeichnet den maximal akzeptablen Datenverlust, RTO die angestrebte Wiederherstellungszeit. Der Restore überschreibt die im Archiv gespeicherte Datenbank. Anwendungen vorher anhalten und den von `backup.sh` ausgegebenen Pfad einsetzen:
 
 ```bash
-cd postgres-compose
 ./scripts/backup.sh
-CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.dump
+CONFIRM_RESTORE=appdb ./scripts/restore.sh backups/appdb-YYYYMMDDTHHMMSSZ.XXXXXX
 ```
 
-`backup.sh` erstellt:
+`backup.sh` legt für jeden Lauf ein eigenes Verzeichnis mit Modus `0700` an. Darin liegen mit Modus `0600`:
 
-- einen `pg_dump` im Custom-Format für die konfigurierte Anwendungsdatenbank
-- eine `pg_dumpall --globals-only`-Datei für Rollen und globale Objekte
-- eine SHA-256-Checksum-Datei
+- `database.dump`: logischer Custom-Format-Dump der Anwendungsdatenbank einschließlich Datenbankdefinition
+- `globals.sql`: Rollen und globale Objekte aus `pg_dumpall --globals-only`
+- `SHA256SUMS`: Prüfsummen beider Dateien; wird erst nach erfolgreichem Abschluss bereitgestellt
 
-Das unterstützt einen einfachen Backup-Ablauf, ersetzt aber kein vollständiges Recovery-Konzept. Backup-Frequenz, Aufbewahrung, Verschlüsselung, externe Ablage, Restore-Tests und RPO/RTO müssen festgelegt werden. Für Point-in-Time-Recovery muss WAL-Archivierung ergänzt werden.
+Gleichzeitige Aufrufe verwenden getrennte Verzeichnisse. Bei einem fehlgeschlagenen Backup wird das unvollständige Verzeichnis entfernt. Die Hilfsskripte unterstützen Datenbanknamen aus Buchstaben, Ziffern und Unterstrichen.
+
+`restore.sh` nimmt das Sicherungsverzeichnis oder dessen `database.dump` entgegen. Vor dem Beenden von Verbindungen und Überschreiben der Datenbank prüft es die SHA-256-Prüfsumme des Dumps, liest das vollständige Archiv ohne SQL-Ausführung und vergleicht dessen Datenbanknamen mit `POSTGRES_DB` und `CONFIRM_RESTORE`. Für diese Prüfung wird eine private temporäre Kopie des Dumps auf dem Host angelegt; entsprechend freien Speicher vorsehen. Auch ältere flache Dumps bleiben mit ihrer ursprünglichen `SHA256SUMS-<Zeitstempel>.txt` nutzbar.
+
+Der anschließende Restore verwendet die Datenbankdefinition aus dem Archiv und stellt damit auch Eigentümer, Datenbankrechte, Kommentar und datenbankspezifische Einstellungen wieder her. Wiederherstellung unter einem anderen Datenbanknamen ist über diesen Helfer nicht vorgesehen. Benötigte Rollen müssen in der Zielinstanz vorhanden sein; die Softwaredateien verwendeter Erweiterungen und andere externe Abhängigkeiten müssen bereitstehen. Globale Objekte werden nicht automatisch eingespielt; die passende `globals.sql` separat prüfen und bei Bedarf einspielen.
+
+Nur Sicherungen aus vertrauenswürdiger Quelle verwenden: Prüfsummen erkennen Beschädigungen, authentifizieren aber den Absender nicht. Eine erfolgreiche Vorabprüfung ersetzt keinen Restore-Test mit den eigenen Daten und Abhängigkeiten. SQL-Fehler nach Beginn der Wiederherstellung können zum Abbruch führen; es gibt keinen automatischen vollständigen Rollback.
+
+Backup-Frequenz, Aufbewahrung, Verschlüsselung, externe Ablage, Restore-Tests und RPO/RTO bleiben Betriebsaufgaben. Die Hilfsskripte richten weder Verschlüsselung noch Zeitplanung ein. Für Point-in-Time-Recovery zusätzlich WAL-Archivierung einrichten.
 
 ---
 
 ## BSI-Alignment
 
-Diese Baseline ist an den BSI-Eckpunkten für Datenbanksysteme, dem BSI-Praxisleitfaden für sichere Datenbanksysteme und APP.4.3 ausgerichtet. Abgedeckt sind insbesondere Basishärtung, geregelte Einrichtung, verschlüsselte Datenbankanbindung, Monitoring/Logging und Backup-/Restore-Vorbereitung.
-
-Für produktionsnahe Nutzung sollte die Konfiguration mit Schutzbedarf, Netzwerkfreigaben, Secret-Management, Backup/Restore und den vorhandenen Betriebsprozessen abgeglichen werden.
-
-Siehe [BSI-Alignment-Hinweise](../BSI-Alignment-de.md) für die Checkliste.
+Für dieses Setup gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen](../../../README-de.md#bsi-alignment). Die [zentrale Umsetzungsübersicht](../../../README-de.md#umsetzung-je-datenbank) beschreibt die Zuordnung für alle DBMS; die konkrete PostgreSQL-Konfiguration und die erforderlichen Betriebsaufgaben stehen in dieser README.
 
 ---
 
@@ -251,13 +273,15 @@ Siehe [BSI-Alignment-Hinweise](../BSI-Alignment-de.md) für die Checkliste.
 | `./initdb:/docker-entrypoint-initdb.d:ro` | Initiale SQL-Skripte, nur beim ersten Start |
 | `../postgresql.conf:/etc/postgresql/postgresql.conf:ro` | Basis-Serverkonfiguration |
 | `../pg_hba.conf:/etc/postgresql/pg_hba.conf:ro` | Basis-Authentifizierungsregeln |
-| `./ssl:/etc/postgresql/ssl:ro` | TLS-Zertifikate, nur TLS-Modus |
+| `./ssl/{server.crt,server.key,ca.crt}` | Drei einzelne schreibgeschützte Datei-Mounts unter `/etc/postgresql/ssl/`, nur TLS-Modus |
 | `127.0.0.1:5432` | PostgreSQL-Zugriff vom Host |
 | `127.0.0.1:8080` | Adminer-Zugriff vom Host |
 
 ---
 
 ## Betrieb
+
+Der folgende `up`-Befehl startet die Basisvariante ohne TLS. Für den TLS-Modus weiter unten das Startskript verwenden; ein einfaches `docker compose up -d` würde wieder die Basisdefinition anwenden. `pg_isready` prüft Erreichbarkeit, nicht eine erfolgreiche Anmeldung oder TLS-Namensprüfung.
 
 ```bash
 docker compose up -d
@@ -266,6 +290,8 @@ docker compose exec -e PGPASSWORD='S3cur3P@ss!' postgres psql -U app_admin -d ap
 docker compose exec -e PGPASSWORD='ChangeMe!Root123' postgres psql -U postgres -d appdb -f /docker-entrypoint-initdb.d/check_config.sql
 docker compose down
 ```
+
+PostgreSQL-, Image-, Host- und Plattform-Updates regelmäßig verfolgen und Upgrades vorab testen. Umfang, Weiterleitung und Aufbewahrung der Datenbanklogs für die eigene Umgebung festlegen.
 
 TLS-Start mit einem Befehl:
 
@@ -288,6 +314,8 @@ docker volume rm <project>_postgres_data
 - [PostgreSQL `pg_hba.conf`-Dokumentation](https://www.postgresql.org/docs/18/auth-pg-hba-conf.html)
 - [PostgreSQL Passwortauthentifizierung und SCRAM](https://www.postgresql.org/docs/18/auth-password.html)
 - [PostgreSQL Rollenattribute](https://www.postgresql.org/docs/18/role-attributes.html)
+- [PostgreSQL: libpq-TLS-Umgebungsvariablen](https://www.postgresql.org/docs/18/libpq-envars.html)
+- [PostgreSQL Objektrechte und Eigentum](https://www.postgresql.org/docs/18/sql-grant.html)
 - [PostgreSQL Verbindungseinstellungen](https://www.postgresql.org/docs/18/runtime-config-connection.html)
 - [PostgreSQL Resource-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-resource.html)
 - [PostgreSQL WAL-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-wal.html)

@@ -4,6 +4,20 @@ tls:
       keyFile: /certs/local.key
 
 http:
+  routers:
+    weaviate:
+      rule: 'Host(`{{ env "WEAVIATE_DOMAIN" }}`)'
+      entryPoints:
+        - websecure
+      tls: {}
+      service: weaviate
+      middlewares:
+        - secure-headers
+  services:
+    weaviate:
+      loadBalancer:
+        servers:
+          - url: 'http://weaviate-db-proxy:{{ env "WEAVIATE_PORT" }}'
   middlewares:
     secure-headers:
       headers:

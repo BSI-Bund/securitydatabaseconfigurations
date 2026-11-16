@@ -6,3 +6,8 @@ users.acl
 *.crt
 *.key
 
+
+# Local validation scripts and their documentation
+/tests/
+__pycache__/
+*.py[cod]
