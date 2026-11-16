@@ -100,11 +100,13 @@ Empfohlene Beispielrollen:
 
 | Rolle | Zweck | Rechte |
 |-------|-------|--------|
-| `app_admin` | Anwendung/Administration der Beispieldatenbank | Zugriff auf `appdb`, DDL/DML im Schema `public`, kein Superuser |
+| `app_admin` | Schreibzugriff und eigene Objekte in der Beispieldatenbank | Zugriff auf `appdb`, `CREATE` im Schema `public`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` auf vorhandenen Tabellen sowie Sequenzrechte, kein Superuser |
 | `app_reader` | Lesender Zugriff | Zugriff auf `appdb`, `SELECT` im Schema `public`, kein Superuser |
 | `postgres` | Initialisierung, Backup/Restore, Wartung | Superuser; nicht für normalen Anwendungszugriff |
 
 Die Beispielpasswörter in `init_users.sql` müssen vor produktionsnaher Nutzung geändert werden.
+
+Beide Anwendungsrollen sind Rollen mit `LOGIN`, also Datenbankbenutzer. `app_admin` besitzt keine allgemeinen Administrationsrechte: `ALTER` und `DROP` setzen im Regelfall Objekteigentum voraus. Die vom Initialisierungskonto angelegte Tabelle `public.users` gehört diesem Konto, nicht `app_admin`.
 
 ---
 
@@ -197,6 +199,7 @@ Für dieses Setup gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen
 - [PostgreSQL `pg_hba.conf`-Dokumentation](https://www.postgresql.org/docs/18/auth-pg-hba-conf.html)
 - [PostgreSQL Passwortauthentifizierung und SCRAM](https://www.postgresql.org/docs/18/auth-password.html)
 - [PostgreSQL Rollenattribute](https://www.postgresql.org/docs/18/role-attributes.html)
+- [PostgreSQL Objektrechte und Eigentum](https://www.postgresql.org/docs/18/sql-grant.html)
 - [PostgreSQL Verbindungseinstellungen](https://www.postgresql.org/docs/18/runtime-config-connection.html)
 - [PostgreSQL Resource-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-resource.html)
 - [PostgreSQL WAL-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-wal.html)

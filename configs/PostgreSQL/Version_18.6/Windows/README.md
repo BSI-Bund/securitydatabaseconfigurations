@@ -100,11 +100,13 @@ Recommended example roles:
 
 | Role | Purpose | Privileges |
 |------|---------|------------|
-| `app_admin` | Application/admin access to the sample database | Access to `appdb`, DDL/DML in schema `public`, no superuser |
+| `app_admin` | Write access and own objects in the sample database | Access to `appdb`, `CREATE` in schema `public`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` on existing tables and sequence privileges, no superuser |
 | `app_reader` | Read-only access | Access to `appdb`, `SELECT` in schema `public`, no superuser |
 | `postgres` | Initialization, backup/restore, maintenance | Superuser; not for normal application access |
 
 Change the example passwords in `init_users.sql` before production-like use.
+
+Both application roles have `LOGIN`, making them database users. `app_admin` has no general administration privileges: `ALTER` and `DROP` generally require object ownership. Table `public.users`, created by the initialization account, belongs to that account rather than `app_admin`.
 
 ---
 
@@ -197,6 +199,7 @@ This setup follows the [shared BSI alignment for all database templates](../../.
 - [PostgreSQL `pg_hba.conf` documentation](https://www.postgresql.org/docs/18/auth-pg-hba-conf.html)
 - [PostgreSQL password authentication and SCRAM](https://www.postgresql.org/docs/18/auth-password.html)
 - [PostgreSQL role attributes](https://www.postgresql.org/docs/18/role-attributes.html)
+- [PostgreSQL object privileges and ownership](https://www.postgresql.org/docs/18/sql-grant.html)
 - [PostgreSQL connection settings](https://www.postgresql.org/docs/18/runtime-config-connection.html)
 - [PostgreSQL resource settings](https://www.postgresql.org/docs/18/runtime-config-resource.html)
 - [PostgreSQL WAL settings](https://www.postgresql.org/docs/18/runtime-config-wal.html)

@@ -67,7 +67,7 @@ In einer zweiten PowerShell:
 mongosh --host localhost --port 27018 --tls --tlsCAFile C:\data\test-ca.pem --tlsCertificateKeyFile C:\data\mongo-client.pem --username admin --authenticationDatabase admin --password
 ```
 
-Das Passwort wird interaktiv abgefragt. Das Skript erzeugt nur ein Root-Administrationskonto; Anwendungskonten mit begrenzten Rollen separat anlegen.
+Das Passwort wird interaktiv abgefragt. Das Skript erzeugt den Benutzer `admin` in der Authentifizierungsdatenbank `admin` mit der clusterweit wirksamen Rolle `root`; Anwendungskonten mit begrenzten Rollen separat anlegen.
 
 ## Wirksame Konfiguration prüfen
 

@@ -13,7 +13,7 @@
   - [Character sets](#character-sets)
   - [Logging](#logging)
   - [binary log](#binary-log)
-  - [mysqldump](#mysqldump)
+  - [mariadb-dump](#mariadb-dump)
 - [Operations](#operations)
 
 ## Installation and active configuration
@@ -74,11 +74,11 @@ The following reference contains recommendations. Check effective values with `S
 | Option              | Meaning                     | Recommendation |
 |---------------------|-----------------------------|----------------|
 | `bind_address`      | Bind IP                     | `127.0.0.1` (or VPN IP) |
-| `skip_networking`   | Disable TCP/IP              | `0`; only `1` if local-only |
+| `skip_networking` | Disable TCP/IP | `0`; use `1` only with a local transport enabled (e.g. named pipe) |
 | `skip_name_resolve` | Avoid DNS lookups           | `1` |
 | `max_connections`   | Max clients                 | 100–500 depending on workload |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`    | `0` (disable) |
-| `secure_file_priv` | Import/export directory | Set a dedicated directory; commented out in the template |
+| `secure_file_priv` | Directory for server-side file import/export | Set a dedicated directory; commented out in the template |
 | `symbolic-links`    | Symlinks in tables          | `0` (disable) |
 
 ### TLS/SSL
@@ -98,7 +98,7 @@ The following reference contains recommendations. Check effective values with `S
 | `innodb_buffer_pool_size`    | InnoDB buffer            | Tune for available RAM and workload |
 | `innodb_log_file_size`       | Redo log size            | 128–512 MB |
 | `innodb_file_per_table`      | Separate tablespace      | `1` |
-| `innodb_flush_log_at_trx_commit` | Durability vs performance | `1` (ACID), `2` if needed |
+| `innodb_flush_log_at_trx_commit` | Write/flush redo log at commit | `1`; `2` can lose data after a crash |
 | `innodb_flush_method`        | I/O handling             | Do not apply automatically on Windows |
 | `aria_pagecache_buffer_size` | Aria cache               | ~128 MB (workload-dependent) |
 | `aria_log_file_size`         | Aria log size            | ~64 MB |
@@ -133,12 +133,14 @@ The following reference contains recommendations. Check effective values with `S
 | `expire_logs_days`      | Binlog retention     | 7–14 days |
 | `binlog_expire_logs_seconds` | Binlog retention (new) | 7–14 days (604800–1209600) |
 
-### mysqldump
+### mariadb-dump
+
+The tool is named [`mariadb-dump`](https://mariadb.com/docs/server/clients-and-utilities/backup-restore-and-import-clients/mariadb-dump); it still reads the existing `[mysqldump]` option group. The old `mysqldump` executable name is no longer included in the official MariaDB Docker image as of version 11.0.
 
 | Option            | Meaning                   | Recommendation |
 |-------------------|---------------------------|----------------|
 | `quick`           | Stream row by row         | Enable |
-| `quote-names`     | Backtick identifiers      | Enable |
+| `quote-names` | Quote identifiers with backticks | Enable |
 | `max_allowed_packet` | Packet size for dumps  | `64M` or higher |
 
 ## Operations

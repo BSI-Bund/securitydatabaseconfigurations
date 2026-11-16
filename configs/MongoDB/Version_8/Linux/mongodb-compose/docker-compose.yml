@@ -30,8 +30,14 @@ services:
       - ../mongod.conf:/etc/mongo/mongod.conf:ro
       - ./container-entrypoint.sh:/usr/local/bin/prepare-container.sh:ro
       - type: bind
-        source: ./ssl
-        target: /run/tls-source
+        source: ./ssl/test-ca.pem
+        target: /run/tls-source/test-ca.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssl/test-server1.pem
+        target: /run/tls-source/test-server1.pem
         read_only: true
         bind:
           create_host_path: false

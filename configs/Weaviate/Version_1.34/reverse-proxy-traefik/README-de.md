@@ -35,6 +35,8 @@ Die Traefik-Port-Mappings sind bereits auf `127.0.0.1:80:80` und `127.0.0.1:443:
 
 Der direkte lokale HTTP-/gRPC-Zugang bleibt parallel verfügbar. TLS endet bei Traefik; die interne Verbindung zu Weaviate verwendet HTTP. Die im Compose gesetzten Container-Härtungsoptionen gelten für Weaviate, nicht pauschal für alle Services. Das Routing wird in `dynamic/tls.yml` über den File-Provider festgelegt; Traefik benötigt keinen Docker-Socket und keinen Docker-Provider. `WEAVIATE_DOMAIN` und `WEAVIATE_PORT` werden dem Traefik-Container für die dynamische Vorlage übergeben.
 
+Für entfernte REST-/GraphQL-Clients ausschließlich den HTTPS-Zugang freigeben und Clients direkt mit `https://` verbinden. Die lokale HTTP-/gRPC-Bindung nicht auf externe Interfaces erweitern: Diese Zugänge umgehen Traefiks TLS-Schutz. Für entfernte gRPC-Clients ist ein zusätzlicher TLS-geschützter Zugang nötig; diese Vorlage stellt ihn nicht bereit. Das Entfernen von Dashboard und Docker-Provider ändert API-Key-Authentifizierung und RBAC in Weaviate nicht.
+
 ## Zertifikat und Hostnamen
 
 Die Domainnamen in `.env`, den Zertifikats-SANs und der Client-Verbindung müssen übereinstimmen. Für die unveränderten Beispieldomains:
@@ -45,7 +47,7 @@ openssl req -x509 -newkey rsa:4096 -noenc -keyout certs/local.key -out certs/loc
 chmod 600 certs/local.key
 ```
 
-Das ist ein lokales selbstsigniertes Serverzertifikat. `certs/local.crt` wird bei den Tests ausdrücklich als vertrauenswürdig angegeben; es ersetzt keine Zertifikatsverwaltung für andere Umgebungen. Die Datei [`dynamic/tls.yml`](dynamic/tls.yml) bindet `local.crt` und `local.key` ein und definiert die Header-Middleware. Außerdem enthält sie Router und Backend-Service; die Domain und der Backend-Port werden beim Laden aus den Traefik-Umgebungsvariablen eingesetzt.
+Das ist ein lokales selbstsigniertes Serverzertifikat. `certs/local.crt` wird bei den Tests ausdrücklich als vertrauenswürdig angegeben; es ersetzt keine Zertifikatsverwaltung für andere Umgebungen. Die Datei [`dynamic/tls.yml`](dynamic/tls.yml) bindet `local.crt` und `local.key` ein und definiert die Header-Middleware. Außerdem enthält sie Router und Backend-Service; die Domain und der Backend-Port werden beim Laden aus den Traefik-Umgebungsvariablen eingesetzt. Nur `certs/local.crt` und `certs/local.key` werden einzeln schreibgeschützt in Traefik eingebunden; weitere Dateien im Zertifikatsordner werden nicht bereitgestellt.
 
 Die Beispieldomains müssen auf den lokalen Host zeigen. Falls die lokale Namensauflösung dies nicht bereits erledigt, folgende Einträge in `/etc/hosts` beziehungsweise unter Windows in `C:\Windows\System32\drivers\etc\hosts` ergänzen:
 
@@ -94,8 +96,10 @@ Der Endpoint **aus Weaviate** ist `http://ollama:11434`. Der Endpoint **für den
 
 ## Python-Beispiele
 
-- [REST-Beispiel](example-clients-python/weaviate-rest-minimal.py): erstellt `Question`, lädt Beispieldaten aus dem Internet und schreibt Objekte.
-- [Ollama-Beispiel](example-clients-python/weaviate-ollama-client.py): prüft Modelle, erstellt beziehungsweise verwendet `QuestionOllama`, fügt ein Objekt ein und führt eine generative Suche aus.
+- [REST-Beispiel](example-clients-python/weaviate-rest-minimal.py): erstellt die Collection `Question`, lädt Beispieldaten aus dem Internet und schreibt Objekte.
+- [Ollama-Beispiel](example-clients-python/weaviate-ollama-client.py): prüft Modelle, erstellt beziehungsweise verwendet die Collection `QuestionOllama`, fügt ein Objekt ein und führt eine generative Suche aus.
+
+Eine Collection enthält Objekte mit definierten Properties. In der REST-API heißt das Feld für den Collection-Namen weiterhin `class`; dieser API-Bezeichner darf nicht durch `collection` ersetzt werden.
 
 Beide vorhandenen Skripte verbinden sich direkt mit dem lokalen HTTP-Endpunkt, das Ollama-Beispiel zusätzlich mit lokalem gRPC. Sie prüfen den Traefik-TLS-Zugang nicht. `API_KEY` in den Skripten vor dem Aufruf an den eigenen Wert anpassen. Die Beispiele verändern Daten und können bei wiederholtem Aufruf weitere Objekte erzeugen.
 
@@ -124,6 +128,7 @@ docker compose down
 
 ## Referenzen
 
+- [Weaviate: Collection-Definition und REST-Feld `class`](https://docs.weaviate.io/weaviate/config-refs/collections)
 - [Weaviate-Authentifizierung](https://docs.weaviate.io/deploy/configuration/authentication)
 - [Traefik: Dashboard und Zugriffsschutz](https://doc.traefik.io/traefik/v3.5/operations/dashboard/)
 - [Traefik: File-Provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/others/file/)

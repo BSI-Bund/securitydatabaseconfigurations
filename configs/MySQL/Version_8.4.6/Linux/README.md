@@ -33,7 +33,7 @@ mkdir -p ssl
 1. Replace every sample password in `.env` and adjust `DB_PORT` if needed.
 2. Follow the [TLS guide](../../../../docs/TLS.md) to prepare `ssl/ca-cert.pem`, `ssl/server-cert.pem`, and `ssl/server-key.pem`. Rename generated files as needed; do not copy the private CA key.
 3. Certificate SANs must cover `localhost` and the Compose service name `mysql` so both host clients and Adminer can verify the server name.
-4. Mounts are already included. The startup wrapper copies only the three required PEM files from read-only `ssl/` into a private tmpfs directory and sets ownership and permissions for `mysql`. The private key receives mode `0600`; the log directory is initialized with suitable permissions in persistent volume `mysql_logs`.
+4. Mounts are already included. The startup wrapper copies only the three required PEM files from read-only `ssl/` into a private tmpfs directory and sets ownership and permissions for `mysql`. The private key receives mode `0600`; the log directory is initialized with suitable permissions in persistent volume `mysql_logs`. Only the three required files are mounted individually; other files in the source directory are not exposed inside the container.
 5. Make the public CA certificate `ssl/ca-cert.pem` readable by the Adminer container, for example with mode `0644`. Keep private keys restricted. Then check the configuration:
 
 ```bash
@@ -89,13 +89,13 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | `skip_name_resolve` | Avoid DNS lookups              | `1`; use IPs in `CREATE USER` |
 | `max_connections`   | Max connections                | 100–500 as needed |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`       | `0` (disable) |
-| `secure_file_priv`  | Folder for import/export       | Set dedicated path or `NULL` (block) |
+| `secure_file_priv` | Directory for server-side file import/export | Set dedicated path or `NULL` (block) |
 
 ### TLS/SSL
 
 | Option                      | Meaning                    | Recommendation |
 |-----------------------------|----------------------------|----------------|
-| `ssl-ca` / `ssl-cert` / `ssl-key` | CA/server certificates | Set paths, permissions `600`, owner `mysql:mysql` |
+| `ssl-ca` / `ssl-cert` / `ssl-key` | CA certificate / server certificate / private server key | Set paths, permissions `600`, owner `mysql:mysql` |
 | `require_secure_transport`  | TLS/socket-only connections | `ON` after TLS setup |
 
 ### Storage & performance
@@ -105,7 +105,7 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | `innodb_buffer_pool_size`    | InnoDB main cache           | Tune for available RAM and workload |
 | `innodb_redo_log_capacity`   | Total redo log size (new)   | 1–4 GB depending on write load |
 | `innodb_file_per_table`      | Separate tablespace         | `1` |
-| `innodb_flush_log_at_trx_commit` | Durability vs. performance | `1` (ACID), `2` if needed |
+| `innodb_flush_log_at_trx_commit` | Write/flush redo log at commit | `1`; `2` can lose data after a crash |
 | `innodb_flush_method`        | I/O strategy                | `O_DIRECT` optional |
 
 ### Character sets
@@ -141,7 +141,7 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | Option            | Meaning                  | Recommendation |
 |-------------------|--------------------------|----------------|
 | `quick`           | Stream row by row        | Enable |
-| `quote-names`     | Backtick object names    | Enable |
+| `quote-names` | Quote identifiers with backticks | Enable |
 | `max_allowed_packet` | Max packet size       | `64M` or higher for large dumps |
 | *(CLI)*           | Consistent dump          | `--single-transaction` (CLI, not `my.cnf`) |
 
@@ -154,7 +154,7 @@ When rotating certificates, replace the source files in `ssl/` and run `docker c
 | `../my.cnf:/etc/mysql/conf.d/my.cnf:ro` | Server configuration |
 | `./initdb:/docker-entrypoint-initdb.d:ro` | First-start initialization |
 | `mysql_data:/var/lib/mysql` | Persistent data |
-| `./ssl:/run/tls-source:ro` | Certificate source; private runtime copy under `/etc/mysql/ssl` |
+| `./ssl/{ca-cert.pem,server-cert.pem,server-key.pem}` | Three individual read-only file mounts under `/run/tls-source/`; private runtime copies under `/etc/mysql/ssl/` |
 | `mysql_logs:/var/log/mysql` | Persistent database logs |
 
 The database writes error, slow-query, and binary logs to `/var/log/mysql`. `docker compose logs` shows container output; review the log files separately.

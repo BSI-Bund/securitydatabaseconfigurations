@@ -81,7 +81,7 @@ flowchart
 
 **Verteilung der Datenbanken auf den Nodes:**
 
-Redis Enterprise plant und verteilt Shards automatisch anhand von Datenbank-, Ressourcen- und Platzierungsrichtlinien. Für Produktionsdatenbanken Replikation und Rack-Zone-Awareness bewusst aktivieren; die resultierende Platzierung anschließend prüfen.
+Redis Enterprise plant und verteilt Shards automatisch anhand von Datenbank-, Ressourcen- und Platzierungsrichtlinien. Für Produktionsdatenbanken Replikation und Rack-Zone-Awareness bewusst aktivieren; die resultierende Platzierung anschließend prüfen. Die TLS-Markierungen im Diagramm setzen aktivierte Datenverschlüsselung zwischen den Knoten voraus. RDI steht für Redis Data Integration; die gezeigte Datenintegration wird hier nicht eingerichtet.
 
 ```mermaid
 flowchart TB
@@ -108,18 +108,18 @@ flowchart TB
         S7["⚪ Replica<br>📦 db:3 (load-test)"]
     end
 
-    %% Replikations-Beziehungen (Master zu Replica)
+    %% Replikations-Beziehungen (Primary zu Replica)
     S1 -. "Replikation (TLS)" .-> S2
     S3 -. "RDI-Datenintegration" .-> S4
     S4 -. "Replikation (TLS)" .-> S5
     S6 -. "Replikation (TLS)" .-> S7
 
     %% Styling für bessere Lesbarkeit im Dokument
-    classDef master fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
+    classDef primary fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#000;
     classDef replica fill:#f1faee,stroke:#1d3557,stroke-width:1px,color:#000;
     classDef nodeBox fill:#f8f9fa,stroke:#333,stroke-width:2px,font-weight:bold;
 
-    class S1,S4,S6 master;
+    class S1,S4,S6 primary;
     class S2,S5,S7 replica;
     class NODE1,NODE2,NODE3 nodeBox;
 ```
@@ -128,22 +128,20 @@ flowchart TB
 
 ## Sichere Datenbankkonfiguration
 
-Verschiedene Konfigurationen für Redis werden in Konfigurationsdateien abgelegt. Abhängig von der Installation können diese in folgenden Ordnern liegen:
+Redis Enterprise verwaltet seine Konfiguration selbst. Installationsdateien, Laufzeitdaten, Konfiguration und Dokumentation liegen je nach Installation unter anderem in diesen Verzeichnissen:
 
 - `/opt/redislabs`
 - `/var/opt/redislabs`
 - `/etc/opt/redislabs`
 - `/usr/share/doc/redislabs`
 
-(Diese sollten nicht manuell editiert werden!).
-
 > [!NOTE]
-> Im Gegensatz zum klassischen Redis existiert keine zentrale `redis.conf`, die alle Parameter steuert. Auf jedem Node existiert eine Konfigurationsdatei (z.B. redis-2.conf) in der Teile der Konfiguration gespeichert sind.
+> Anders als bei Redis Open Source wird keine zentrale `redis.conf` manuell gepflegt. Generierte Konfigurationsdateien nicht direkt bearbeiten; die Verwaltungsoberfläche, `rladmin` oder die REST-API verwenden.
 
 Generell ist die Konfiguration hierarchisch aufgeteilt:
 
 1. **Cluster-Ebene:** Globale Parameter und Cluster-Zustand.
-2. **Datenbank-Ebene:** Jede DB besitzt dedizierte Einstellungen, die über Proxies an die Shards weitergegeben werden.
+2. **Datenbank-Ebene:** Jede Datenbank besitzt eigene Einstellungen und einen Client-Endpunkt. Proxies leiten Client-Befehle an die zuständigen Shards weiter.
 
 Für die Konfiguration wird die Verwendung der Web UI empfohlen.
 
@@ -151,7 +149,7 @@ Für die Konfiguration wird die Verwendung der Web UI empfohlen.
 
 ### TLS & Verschlüsselung
 
-Es wird empfohlen TLS für den Datenaustausch zu aktivieren.
+TLS für Client-Verbindungen aktivieren. Die Option „Between databases“ betrifft Verbindungen zu anderen Clustern für „Replica Of“ oder Active-Active-Synchronisation; die Verschlüsselung der Shard-Replikation innerhalb desselben Clusters wird separat konfiguriert.
 
 #### Umsetzung in Management UI
 
@@ -161,10 +159,14 @@ Es wird empfohlen TLS für den Datenaustausch zu aktivieren.
 4. "TLS - Transport Layer Security for secure connections" aufklappen
 5. TLS aktivieren und "Clients and databases + Between databases" wählen
 
+Für die Datenkommunikation innerhalb des Clusters zusätzlich **Internode Encryption** je Datenbank aktivieren (`data_internode_encryption`). Sie schützt unter anderem Shard-Replikation und Proxy-zu-Shard-Verbindungen zwischen Knoten. Die bereits aktivierte Verschlüsselung der Steuerungsebene ersetzt diese Einstellung nicht.
+
 #### Prüfen der Konfiguration mit rladmin
 
 1. Befehl `rladmin status extra all` ausführen
 2. Unter "ENDPOINTS" in der Spalte "SSL" den Eintrag für die jeweilige Datenbank prüfen
+
+Die Endpoint-Anzeige belegt nicht die Internode-Verschlüsselung. Beide Einstellungen separat prüfen und eine Client-Verbindung mit CA- und Servernamensprüfung testen.
 
 ---
 
@@ -189,33 +191,33 @@ Die folgende Tabelle zeigt nur ausgewählte Zugänge, keine vollständige Firewa
 
 ### Nutzerverwaltung
 
-Es wird empfohlen, ein rollenbasiertes Zugriffskonzept umzusetzen mit minimalen Berechtigungen (Least Privilege).
+Ein rollenbasiertes Zugriffskonzept mit minimalen Berechtigungen (Least Privilege) verwenden. **RBAC** steht für Role-Based Access Control und bezeichnet das Berechtigungsmodell. **Redis-ACLs** (Access Control Lists) legen erlaubte Befehle sowie Schlüssel- und Kanalzugriffe fest. Eine Rolle verbindet diese Regeln mit den zugänglichen Datenbanken; Benutzer erhalten Rollen. Verwaltungsrechte für den Cluster und Datenzugriffsrechte getrennt vergeben.
 
 #### Umsetzung einer rollenbasierten Zugriffsberechtigung
 
 Anlegen von Rollen und Nutzern:
 
-1. Erstellen von ACLs (Access Control List).
-2. Anlegen von Rollen und Zuweisung der jeweiligen ACLs (RBACs).
-3. Anlegen von Nutzern und Zuweisung der jeweiligen Rolle.
-4. In der Datenbank unter **Security** nur die erforderlichen Rollen und ACLs zuordnen.
-5. Für neue Umgebungen den Default-User deaktivieren, sofern keine Legacy-Kompatibilität erforderlich ist.
+1. Redis-ACLs mit den erforderlichen Zugriffsregeln erstellen.
+2. Rollen anlegen und die Redis-ACLs den jeweiligen Datenbanken zuordnen. Für reine Anwendungskonten **Management role: None** setzen.
+3. Benutzer anlegen und die benötigten Rollen zuweisen.
+4. Den Zugriff mit diesen Benutzern prüfen.
+5. Danach den Datenbankbenutzer `default` deaktivieren, sofern keine Kompatibilität mit Clients vor Redis 6 erforderlich ist.
 
 #### Umsetzung in Management UI
 
 ACL und Nutzer anlegen:
 
 1. "Access Control" auswählen
-2. "Roles" wählen und ACLs und Rollen anlegen
-3. "User" wählen und Nutzer anlegen
+2. Unter "Roles" → "Data ACLs" Redis-ACLs anlegen; unter "Roles" Rollen mit den benötigten Datenbank-/ACL-Zuordnungen anlegen
+3. "Users" wählen, Benutzer anlegen und Rollen zuweisen
 
-Zuweisung einer ACL zur Datenbank:
+Zugriff ausschließlich über ACL-Benutzer aktivieren:
 
 1. "Databases" wählen
 2. Datenbank auswählen
 3. "Security" wählen
 4. "Edit" wählen
-5. In "Access Control" den Punkt "Using ACL only" wählen und die Nutzer hinzufügen
+5. In "Access Control" den Punkt "Using ACL only" wählen und die benötigten Rollen und Redis-ACLs auswählen. Diese Rollen müssen bereits Benutzern zugewiesen sein.
 
 ---
 
@@ -252,7 +254,7 @@ Es wird empfohlen, die folgenden Parameter an die Gegebenheiten der Umgebung anz
 
 #### Log-Zentralisierung (SIEM/Syslog)
 
-Es wird empfohlen, die native Syslog-Weiterleitung zu aktivieren. Alle Cluster-Events und administrativen Aktionen sollten an ein zentrales Log-Management- oder SIEM-System übergeben werden. Hierbei sollte die Übertragung mittels TLS verschlüsselt sein.
+Die benötigten Cluster- und Audit-Ereignisse an ein zentrales Log-Management- oder SIEM-System weiterleiten. Dafür eine unterstützte Weiterleitung oder einen Log-Agenten einrichten und die Übertragung mit TLS absichern. Ereignisabdeckung und Transportverschlüsselung separat prüfen.
 
 ---
 
@@ -260,7 +262,7 @@ Es wird empfohlen, die native Syslog-Weiterleitung zu aktivieren. Alle Cluster-E
 
 Persistenz und periodische Backups sind getrennte Schutzmechanismen:
 
-- **Persistenz** (AOF oder Snapshots) schützt gegen Prozess- und Serverausfälle.
+- **Persistenz** (Append-Only File/AOF oder RDB-Snapshots) ermöglicht Wiederherstellung aus den auf Datenträger gespeicherten Daten.
 - **Periodische Backups** ermöglichen Wiederherstellung nach schwerwiegenderen Fehlern.
 
 Für jede Produktionsdatenbank Backup-Ziel, Aufbewahrung, Zugriffsschutz/Verschlüsselung sowie einen regelmäßigen Restore-Test festlegen und dokumentieren.
@@ -277,7 +279,7 @@ Für jede Produktionsdatenbank Backup-Ziel, Aufbewahrung, Zugriffsschutz/Verschl
 
 ### Hochverfügbarkeit (HA)
 
-Die Hochverfügbarkeit von Redis Enterprise basiert auf einer automatisierten Master-Replica-Architektur auf Shard-Ebene.
+Die Hochverfügbarkeit von Redis Enterprise basiert auf einer automatisierten Primary-Replica-Architektur auf Shard-Ebene.
 Replikation und Replica-HA je Datenbank ausdrücklich prüfen und aktivieren. Bei aktivierter Replikation kann nach einem Primary-Ausfall die Replica zum neuen Primary befördert werden. „Replica high availability“ hilft zusätzlich, nach einem Node-Ausfall verlorene Replicas wiederherzustellen.
 
 #### Prüfen/Aktivieren der Hochverfügbarkeit
@@ -294,12 +296,12 @@ Replikation und Replica-HA je Datenbank ausdrücklich prüfen und aktivieren. Be
 
 * **Transportverschlüsselung (TLS) aktivieren:** Für alle Datenbanken sollte TLS aktiviert werden, da sonst unverschlüsselte Daten im internen Netzwerk im Klartext mitgelesen werden können.
 * **Restriktive Firewall-Regeln anwenden:** Die kritischen Management-Ports (z.B. `8443`) sollten nur für Admin-IPs freigegeben sein. Generell sollte über Firewall Regeln die Zugriffe auf die verschiedenen Ports der Nodes geprüft werden.
-* **Rollenbasierten Zugriff (RBAC) mittels ACL umsetzen:** Jede Datenbank darf nur für dedizierte Nutzer zugänglich sein. Diese sollten über ACL-Rollen auf die benötigten Befehle beschränkt sein.
+* **Rollenbasierten Zugriff (RBAC) umsetzen:** Datenbankzugriff über Rollen und Redis-ACLs auf die benötigten Befehle, Schlüssel und Kanäle beschränken; Cluster-Verwaltungsrechte separat vergeben.
 * **Log-Zentralisierung mittels Syslog einrichten:** Alle Cluster- und Audit-Ereignisse sollten an ein zentrales SIEM-System weitergeleitet werden.
 * **Backups konfigurieren:** Jede Datenbank benötigt zyklische Backups auf externem Speicher.
 * **Hochverfügbarkeit aktivieren:** Replikation für alle Produktivdatenbanken aktivieren, und die Ausfalltoleranz einschließlich der Platzierung und verfügbaren Ressourcen prüfen.
-* **Keine manuellen Datei-Edits durchführen:** Da Redis Enterprise Konfigurationen dynamisch im zentralen Cluster Store verwaltet, sollten Parameter in der Regel über die WebUI, `rladmin` oder Redis CLI geändert werden.
-* **Inter-Node Encryption:** Kommunikation zwischen den Nodes mittels TLS absichern.
+* **Keine manuellen Datei-Edits durchführen:** Konfiguration über Management UI, `rladmin` oder die REST-API ändern.
+* **Internode Encryption:** Datenkommunikation zwischen den Knoten zusätzlich zur Client-TLS-Konfiguration verschlüsseln.
 
 ---
 
@@ -355,6 +357,8 @@ redis-cli \
   --askpass
 ```
 
+Das CLI-Beispiel belegt TLS mit CA-Prüfung, aber keine allgemeine Servernamensprüfung: Im Upstream-Code von `redis-cli` 8.0 wird der Zertifikatspfad geprüft; `--sni` allein ergänzt keinen Hostnamenabgleich. Den tatsächlich eingesetzten Client prüfen und für produktive Verbindungen einen Client mit aktivierter CA- **und** Servernamensprüfung verwenden.
+
 Alternativ zur Passworteingabe kann mit `REDISCLI_AUTH` das Passwort als Umgebungsvariable gesetzt werden.
 
 Hostname, Port, CA-Pfad und ACL-Nutzer durch die tatsächlichen Werte ersetzen. Für `INFO` und `SLOWLOG` muss der Nutzer die entsprechenden Leserechte besitzen. Nach erfolgreichem Verbindungsaufbau:
@@ -368,8 +372,13 @@ SLOWLOG LEN
 
 ## Referenzen
 
+- [Redis 8.0: TLS-Implementierung des CLI-Clients](https://github.com/redis/redis/blob/8.0.0/src/cli_common.c#L36-L89)
 - [Redis: rladmin status](https://redis.io/docs/latest/operate/rs/references/cli-utilities/rladmin/status/)
 - [Redis: rladmin info](https://redis.io/docs/latest/operate/rs/references/cli-utilities/rladmin/info/)
 - [Redis: Replica HA](https://redis.io/docs/latest/operate/rs/databases/configure/replica-ha/)
+- [Redis 8.0: Rollen und Redis-ACLs](https://redis.io/docs/latest/operate/rs/8.0/security/access-control/create-db-roles/)
+- [Redis 8.0: Default-Benutzer verwalten](https://redis.io/docs/latest/operate/rs/8.0/security/access-control/manage-users/default-user/)
+- [Redis: TLS aktivieren](https://redis.io/docs/latest/operate/rs/security/encryption/tls/enable-tls/)
+- [Redis 8.0: Internode Encryption](https://redis.io/docs/latest/operate/rs/8.0/security/encryption/internode-encryption/)
 
 © 2026 – Sichere Datenbankkonfigurationen

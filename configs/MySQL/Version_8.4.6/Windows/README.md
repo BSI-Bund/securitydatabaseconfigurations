@@ -72,18 +72,18 @@ The following reference contains recommendations. Check effective values with `S
 | Option                  | Meaning                       | Recommendation |
 |-------------------------|--------------------------------|----------------|
 | `bind_address`          | Interface binding             | `127.0.0.1` (or VPN IP) |
-| `skip_networking`       | Disable TCP/IP                | `0`; only `1` for named-pipe only |
+| `skip_networking` | Disable TCP/IP | `0`; use `1` only with a local transport enabled (e.g. named pipe) |
 | `skip_name_resolve`     | Avoid DNS lookups             | `1`; use IPs in `CREATE USER` |
 | `max_connections`       | Concurrent connections        | 100–500 depending on workload |
 | `local_infile`          | Client file upload via SQL    | `0` (lock down hard) |
-| `secure_file_priv`      | Whitelist folder for INFILE   | Set dedicated folder or `NULL` |
+| `secure_file_priv` | Directory for server-side file import/export | Set dedicated folder or `NULL` |
 | `lower_case_table_names`| Case semantics (Windows)      | `1` (required) |
 
 ### TLS/SSL
 
 | Option                      | Meaning                     | Recommendation |
 |-----------------------------|-----------------------------|----------------|
-| `ssl-ca` / `ssl-cert` / `ssl-key` | CA/server certificates | Set paths; restrict permissions |
+| `ssl-ca` / `ssl-cert` / `ssl-key` | CA certificate / server certificate / private server key | Set paths; restrict permissions |
 | `require_secure_transport`  | Only allow secure transport | `ON` after TLS setup |
 
 ### InnoDB – performance & durability
@@ -93,7 +93,7 @@ The following reference contains recommendations. Check effective values with `S
 | `innodb_buffer_pool_size`       | Main cache                      | Tune for available RAM and workload |
 | `innodb_redo_log_capacity`      | Total redo log size (≥8.0)      | 1–4 GB depending on write load |
 | `innodb_file_per_table`         | Separate tablespaces            | `1` |
-| `innodb_flush_log_at_trx_commit`| Durability vs. throughput       | `1` (ACID), `2` if you need throughput |
+| `innodb_flush_log_at_trx_commit` | Write/flush redo log at commit | `1`; `2` can lose data after a crash |
 
 ### Character sets
 
@@ -128,7 +128,7 @@ The following reference contains recommendations. Check effective values with `S
 | Option              | Effect                  | Recommendation |
 |---------------------|-------------------------|----------------|
 | `quick`             | Streams row by row      | Enable |
-| `quote-names`       | Escapes identifiers     | Enable |
+| `quote-names` | Quote identifiers with backticks | Enable |
 | `max_allowed_packet`| Larger rows/blobs       | ≥ `64M` |
 
 ## Operations

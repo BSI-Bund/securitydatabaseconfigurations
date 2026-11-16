@@ -14,7 +14,7 @@ This template combines **MariaDB 11.8** and Adminer. The database configuration 
   - [Character sets](#character-sets)
   - [Logging](#logging)
   - [binary log](#binary-log)
-  - [mysqldump](#mysqldump)
+  - [mariadb-dump](#mariadb-dump)
 - [Files and operations](#files-and-operations)
 - [References](#references)
 
@@ -33,7 +33,7 @@ mkdir -p ssl
 1. Replace every sample password in `.env` and adjust `DB_PORT` if needed.
 2. Follow the [TLS guide](../../../../docs/TLS.md) to prepare `ssl/ca-cert.pem`, `ssl/server-cert.pem`, and `ssl/server-key.pem`. Rename generated files as needed; do not copy the private CA key.
 3. Certificate SANs must cover `localhost` and the Compose service name `mariadb` so both host clients and Adminer can verify the server name.
-4. Mounts are already included. The startup wrapper copies only the three required PEM files from read-only `ssl/` into a private tmpfs directory and sets ownership and permissions for `mysql`. The private key receives mode `0600`; the log directory is initialized with suitable permissions in persistent volume `mariadb_logs`.
+4. Mounts are already included. The startup wrapper copies only the three required PEM files from read-only `ssl/` into a private tmpfs directory and sets ownership and permissions for `mysql`. The private key receives mode `0600`; the log directory is initialized with suitable permissions in persistent volume `mariadb_logs`. Only the three required files are mounted individually; other files in the source directory are not exposed inside the container.
 5. Make the public CA certificate `ssl/ca-cert.pem` readable by the Adminer container, for example with mode `0644`. Keep private keys restricted. Then check the configuration:
 
 ```bash
@@ -87,7 +87,7 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | `skip_name_resolve` | Avoid DNS lookups              | `1` |
 | `max_connections`   | Max clients                    | 100–500 depending on workload |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`       | `0` (disable) |
-| `secure_file_priv` | Import/export directory | Set a dedicated directory; commented out in the template |
+| `secure_file_priv` | Directory for server-side file import/export | Set a dedicated directory; commented out in the template |
 | `symbolic-links`    | Symlink usage                  | `0` (disable) |
 
 ### TLS/SSL
@@ -107,7 +107,7 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | `innodb_buffer_pool_size`    | InnoDB buffer            | Tune for available RAM and workload |
 | `innodb_log_file_size`       | Redo log size            | 128–512 MB |
 | `innodb_file_per_table`      | Separate tablespace      | `1` |
-| `innodb_flush_log_at_trx_commit` | Durability vs performance | `1` (ACID), `2` if needed |
+| `innodb_flush_log_at_trx_commit` | Write/flush redo log at commit | `1`; `2` can lose data after a crash |
 | `innodb_flush_method`        | I/O handling             | `O_DIRECT` recommended |
 | `aria_pagecache_buffer_size` | Aria cache               | ~128 MB (workload-dependent) |
 | `aria_log_file_size`         | Aria log size            | ~64 MB |
@@ -142,12 +142,14 @@ In that connection, check `SHOW SESSION STATUS LIKE 'Ssl_cipher';`.
 | `expire_logs_days`      | Binlog retention     | 7–14 days |
 | `binlog_expire_logs_seconds` | Binlog retention (new) | 7–14 days (604800–1209600) |
 
-### mysqldump
+### mariadb-dump
+
+The tool is named [`mariadb-dump`](https://mariadb.com/docs/server/clients-and-utilities/backup-restore-and-import-clients/mariadb-dump); it still reads the existing `[mysqldump]` option group. The old `mysqldump` executable name is no longer included in the official MariaDB Docker image as of version 11.0.
 
 | Option            | Meaning                  | Recommendation |
 |-------------------|--------------------------|----------------|
 | `quick`           | Stream row by row        | Enable |
-| `quote-names`     | Backtick identifiers     | Enable |
+| `quote-names` | Quote identifiers with backticks | Enable |
 | `max_allowed_packet` | Packet size for dumps | `64M` or higher |
 
 When rotating certificates, replace the source files in `ssl/` and run `docker compose restart mariadb` to recreate the protected runtime copies. Then verify the TLS connection again.
@@ -159,7 +161,7 @@ When rotating certificates, replace the source files in `ssl/` and run `docker c
 | `../mariadb.cnf:/etc/mysql/conf.d/my.cnf:ro` | Server configuration |
 | `./initdb:/docker-entrypoint-initdb.d:ro` | First-start initialization |
 | `mariadb_data:/var/lib/mysql` | Persistent data |
-| `./ssl:/run/tls-source:ro` | Certificate source; private runtime copy under `/etc/mysql/ssl` |
+| `./ssl/{ca-cert.pem,server-cert.pem,server-key.pem}` | Three individual read-only file mounts under `/run/tls-source/`; private runtime copies under `/etc/mysql/ssl/` |
 | `mariadb_logs:/var/log/mysql` | Persistent database logs |
 
 The database writes error, slow-query, and binary logs to `/var/log/mysql`. `docker compose logs` shows container output; review the log files separately.

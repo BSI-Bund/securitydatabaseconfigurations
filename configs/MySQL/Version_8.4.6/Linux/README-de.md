@@ -33,7 +33,7 @@ mkdir -p ssl
 1. In `.env` sämtliche Beispielpasswörter ersetzen und bei Bedarf `DB_PORT` anpassen.
 2. Nach der [TLS-Anleitung](../../../../docs/TLS-de.md) Zertifikate bereitstellen: `ssl/ca-cert.pem`, `ssl/server-cert.pem` und `ssl/server-key.pem`. Die erzeugten Dateien gegebenenfalls passend umbenennen; den privaten CA-Schlüssel nicht kopieren.
 3. Die Zertifikats-SANs müssen `localhost` und den Compose-Servicenamen `mysql` abdecken, damit sowohl der Host-Client als auch Adminer den Servernamen prüfen können.
-4. Die Mounts sind bereits enthalten. Das Startskript kopiert nur die drei benötigten PEM-Dateien aus dem schreibgeschützten `ssl/` in ein privates tmpfs-Verzeichnis und setzt Eigentümer und Rechte für `mysql`. Der private Schlüssel erhält Modus `0600`; das Logverzeichnis wird im persistenten Volume `mysql_logs` mit passenden Rechten angelegt.
+4. Die Mounts sind bereits enthalten. Das Startskript kopiert nur die drei benötigten PEM-Dateien aus dem schreibgeschützten `ssl/` in ein privates tmpfs-Verzeichnis und setzt Eigentümer und Rechte für `mysql`. Der private Schlüssel erhält Modus `0600`; das Logverzeichnis wird im persistenten Volume `mysql_logs` mit passenden Rechten angelegt. Es werden nur die drei benötigten Dateien einzeln eingebunden; weitere Dateien im Quellordner werden nicht im Container sichtbar.
 5. Das öffentliche CA-Zertifikat `ssl/ca-cert.pem` muss auch für den Adminer-Container lesbar sein, beispielsweise mit Modus `0644`. Die privaten Schlüssel verbleiben zugriffsbeschränkt. Danach die Konfiguration prüfen:
 
 ```bash
@@ -89,13 +89,13 @@ In dieser Verbindung `SHOW SESSION STATUS LIKE 'Ssl_cipher';` prüfen.
 | `skip_name_resolve` | DNS-Lookups vermeiden            | `1`; nutze IPs in `CREATE USER` |
 | `max_connections`   | Maximale Verbindungen            | 100–500 nach Bedarf |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`         | `0` (deaktiviert) |
-| `secure_file_priv`  | Ordner für Import/Export         | Dedizierten Pfad setzen oder `NULL` (sperren) |
+| `secure_file_priv` | Verzeichnis für serverseitigen Dateiimport/-export | Dedizierten Pfad setzen oder `NULL` (sperren) |
 
 ### TLS/SSL
 
 | Option                      | Bedeutung                    | Empfehlung |
 |-----------------------------|------------------------------|------------|
-| `ssl-ca` / `ssl-cert` / `ssl-key` | CA/Server-Zertifikate | Pfade setzen, Rechte `600`, Owner `mysql:mysql` |
+| `ssl-ca` / `ssl-cert` / `ssl-key` | CA-Zertifikat / Serverzertifikat / privater Serverschlüssel | Pfade setzen, Rechte `600`, Owner `mysql:mysql` |
 | `require_secure_transport`  | Nur TLS/Socket-Verbindungen  | `ON` nach TLS-Einrichtung |
 
 ### Speicher & Performance
@@ -105,7 +105,7 @@ In dieser Verbindung `SHOW SESSION STATUS LIKE 'Ssl_cipher';` prüfen.
 | `innodb_buffer_pool_size`    | Hauptcache InnoDB            | An verfügbaren RAM und Workload anpassen |
 | `innodb_redo_log_capacity`   | Redo-Log-Gesamtgröße (neu)   | 1–4 GB je nach Schreiblast |
 | `innodb_file_per_table`      | Separater Tablespace         | `1` |
-| `innodb_flush_log_at_trx_commit` | Haltbarkeit vs. Performance | `1` (ACID), `2` bei Bedarf |
+| `innodb_flush_log_at_trx_commit` | Redo-Log bei Commit schreiben/synchronisieren | `1`; bei `2` ist Datenverlust nach einem Absturz möglich |
 | `innodb_flush_method`        | I/O-Strategie                | `O_DIRECT` optional |
 
 ### Zeichensätze
@@ -141,7 +141,7 @@ In dieser Verbindung `SHOW SESSION STATUS LIKE 'Ssl_cipher';` prüfen.
 | Option            | Bedeutung                  | Empfehlung |
 |-------------------|----------------------------|------------|
 | `quick`           | Zeilenweises Streaming     | Aktivieren |
-| `quote-names`     | Backticks um Objekt-Namen  | Aktivieren |
+| `quote-names` | Bezeichner in Backticks setzen | Aktivieren |
 | `max_allowed_packet` | Max. Paketgröße         | `64M` oder höher bei großen Dumps |
 | *(CLI)*           | Konsistenter Dump          | `--single-transaction` (nicht in `my.cnf`) |
 
@@ -154,7 +154,7 @@ Bei Zertifikatswechseln die Quelldateien in `ssl/` ersetzen und `docker compose 
 | `../my.cnf:/etc/mysql/conf.d/my.cnf:ro` | Serverkonfiguration |
 | `./initdb:/docker-entrypoint-initdb.d:ro` | Initialisierung beim ersten Start |
 | `mysql_data:/var/lib/mysql` | Persistente Daten |
-| `./ssl:/run/tls-source:ro` | Zertifikatsquelle; private Laufzeitkopie unter `/etc/mysql/ssl` |
+| `./ssl/{ca-cert.pem,server-cert.pem,server-key.pem}` | Drei einzelne schreibgeschützte Datei-Mounts unter `/run/tls-source/`; private Laufzeitkopien unter `/etc/mysql/ssl/` |
 | `mysql_logs:/var/log/mysql` | Persistente Datenbanklogs |
 
 Die Datenbank schreibt Fehler-, Slow-Query- und Binärlogs nach `/var/log/mysql`. `docker compose logs` zeigt die Container-Ausgabe; es ersetzt nicht die Auswertung dieser Dateien.

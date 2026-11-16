@@ -9,7 +9,7 @@
 - [Parameterreferenz](#parameterreferenz)
   - [Netzwerk & Zugriff](#netzwerk--zugriff)
   - [TLS/SSL](#tlsssl)
-  - [InnoDB – Performance & Haltbarkeit](#innodb--performance--haltbarkeit)
+  - [InnoDB – Performance & Dauerhaftigkeit](#innodb--performance--dauerhaftigkeit)
   - [Zeichensätze](#zeichensätze)
   - [Logging & Diagnose](#logging--diagnose)
   - [Binärlog](#binärlog)
@@ -72,28 +72,28 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 | Option                  | Bedeutung                      | Empfehlung |
 |-------------------------|--------------------------------|------------|
 | `bind_address`          | Interface-Bindung              | `127.0.0.1` (oder VPN-IP) |
-| `skip_networking`       | TCP/IP deaktivieren            | `0`; nur `1` für Named-Pipe-only |
+| `skip_networking` | TCP/IP deaktivieren | `0`; `1` nur mit aktiviertem lokalem Transport (z. B. Named Pipe) |
 | `skip_name_resolve`     | DNS-Lookups vermeiden          | `1`; nutze IPs in `CREATE USER` |
 | `max_connections`       | Gleichzeitige Verbindungen     | 100–500 je nach Workload |
 | `local_infile`          | Client-Datei-Upload per SQL    | `0` (hart absichern) |
-| `secure_file_priv`      | Whitelist-Ordner für INFILE    | Dedizierten Ordner setzen oder `NULL` |
+| `secure_file_priv` | Verzeichnis für serverseitigen Dateiimport/-export | Dedizierten Ordner setzen oder `NULL` |
 | `lower_case_table_names`| Case-Semantik (Windows)        | `1` (Pflicht) |
 
 ### TLS/SSL
 
 | Option                      | Bedeutung                  | Empfehlung |
 |-----------------------------|----------------------------|------------|
-| `ssl-ca` / `ssl-cert` / `ssl-key` | CA/Server-Zertifikate | Pfade setzen; Rechte restriktiv |
+| `ssl-ca` / `ssl-cert` / `ssl-key` | CA-Zertifikat / Serverzertifikat / privater Serverschlüssel | Pfade setzen; Rechte restriktiv |
 | `require_secure_transport`  | Nur sichere Verbindungen   | `ON` nach TLS-Einrichtung |
 
-### InnoDB – Performance & Haltbarkeit
+### InnoDB – Performance & Dauerhaftigkeit
 
 | Option                          | Wirkung                         | Empfehlung |
 |---------------------------------|---------------------------------|------------|
 | `innodb_buffer_pool_size`       | Hauptcache                      | An verfügbaren RAM und Workload anpassen |
 | `innodb_redo_log_capacity`      | Redo-Log-Gesamtgröße (≥8.0)     | 1–4 GB je nach Schreiblast |
 | `innodb_file_per_table`         | Separate Tablespaces            | `1` |
-| `innodb_flush_log_at_trx_commit`| Haltbarkeit vs. Throughput      | `1` (ACID), `2` bei Performancebedarf |
+| `innodb_flush_log_at_trx_commit` | Redo-Log bei Commit schreiben/synchronisieren | `1`; bei `2` ist Datenverlust nach einem Absturz möglich |
 
 ### Zeichensätze
 
@@ -120,7 +120,7 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 |-----------------------------|-------------------------------|
 | `log-bin`, `log-bin-index`  | Binärlog für PITR/Replikation |
 | `binlog_format`             | `ROW` empfohlen                |
-| `sync_binlog`               | `1` für Haltbarkeit            |
+| `sync_binlog`               | `1` für Dauerhaftigkeit            |
 | `binlog_expire_logs_seconds`| 7–14 Tage                     |
 
 ### mysqldump
@@ -128,7 +128,7 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 | Option              | Wirkung                 | Empfehlung     |
 |---------------------|-------------------------|----------------|
 | `quick`             | Streamt zeilenweise     | Aktivieren     |
-| `quote-names`       | Maskiert Identifier     | Aktivieren     |
+| `quote-names` | Bezeichner in Backticks setzen | Aktivieren |
 | `max_allowed_packet`| Größere Rows/Blobs      | ≥ `64M`        |
 
 ## Betrieb

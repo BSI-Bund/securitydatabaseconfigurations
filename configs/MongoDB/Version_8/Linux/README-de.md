@@ -21,7 +21,7 @@ cp .env.example .env
 mkdir -p ssl
 ```
 
-1. Alle Beispiel-Secrets in `.env` ersetzen. `MONGO_USER` und `MONGO_PASSWORD` werden als `MONGO_INITDB_ROOT_USERNAME` und `MONGO_INITDB_ROOT_PASSWORD` übergeben: Dieses Konto besitzt **Root-Rechte in `admin`**, auch wenn der Beispielname `appuser` lautet.
+1. Alle Beispiel-Secrets in `.env` ersetzen. `MONGO_USER` und `MONGO_PASSWORD` werden als `MONGO_INITDB_ROOT_USERNAME` und `MONGO_INITDB_ROOT_PASSWORD` übergeben: Dieses Konto wird in der Authentifizierungsdatenbank `admin` angelegt und erhält die **clusterweit wirksame Rolle `root`**, auch wenn der Beispielname `appuser` lautet.
 2. Nach der [TLS-Anleitung](../../../../docs/TLS-de.md) CA-, Server- und Clientzertifikat erstellen. Die Server-SANs müssen `localhost` sowie gegebenenfalls den tatsächlich verwendeten Container-/DNS-Namen abdecken.
 3. Die folgenden Dateien in `mongodb-compose/ssl/` bereitstellen:
 
@@ -31,7 +31,7 @@ mkdir -p ssl
 | `test-server1.pem` | Serverschlüssel und Serverzertifikat kombiniert; wird in den Server gemountet |
 | `client.pem` | Clientschlüssel und Clientzertifikat kombiniert; nur für den Client |
 
-4. Die Zertifikatsquelle `ssl/` und das Log-Volume `mongo_logs` sind bereits eingebunden. Das Startskript legt das Logverzeichnis mit passenden Rechten an und kopiert ausschließlich die beiden benötigten Server-PEM-Dateien in ein privates tmpfs-Verzeichnis unter `/etc/ssl/mongodb`. Die Dateien erhalten Eigentümer `mongodb` und Modus `0600`; der Clientschlüssel bleibt auf dem Client.
+4. Nur `ssl/test-ca.pem` und `ssl/test-server1.pem` werden als schreibgeschützte Datei-Mounts eingebunden, nicht der ganze Ordner mit dem Client-PEM. Das Startskript legt das Logverzeichnis im Volume `mongo_logs` mit passenden Rechten an und kopiert die beiden Server-PEM-Dateien in ein privates tmpfs-Verzeichnis unter `/etc/ssl/mongodb`. Die Dateien erhalten Eigentümer `mongodb` und Modus `0600`; der Clientschlüssel bleibt auf dem Client.
 5. `docker compose config --quiet` ausführen und die aufgelöste Konfiguration prüfen.
 
 Die Vorlage erzwingt TLS. Da `allowConnectionsWithoutCertificates` nicht aktiviert ist, benötigt der Client außerdem das von derselben vertrauenswürdigen CA signierte Clientzertifikat. Dieses ersetzt nicht die Anmeldung mit Benutzer und Passwort.

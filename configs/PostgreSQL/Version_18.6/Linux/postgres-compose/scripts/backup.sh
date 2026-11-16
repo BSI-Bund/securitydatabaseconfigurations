@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+umask 077
 
 # Creates a logical backup of the configured PostgreSQL database plus global
 # objects such as roles. For point-in-time recovery, add WAL archiving.

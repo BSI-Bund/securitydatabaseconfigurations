@@ -35,6 +35,8 @@ Traefik port mappings already bind to `127.0.0.1:80:80` and `127.0.0.1:443:443`.
 
 Direct local HTTP/gRPC access remains available. TLS terminates at Traefik; its internal connection to Weaviate uses HTTP. Compose container hardening options apply to Weaviate, not automatically to all services. Routing is defined in `dynamic/tls.yml` through the file provider; Traefik requires neither a Docker socket nor a Docker provider. `WEAVIATE_DOMAIN` and `WEAVIATE_PORT` are passed into the Traefik container for the dynamic template.
 
+For remote REST/GraphQL clients, expose only HTTPS and connect clients directly using `https://`. Do not expand the local HTTP/gRPC bindings to external interfaces: these endpoints bypass Traefik TLS. Remote gRPC clients need an additional TLS-protected endpoint; this template does not provide one. Removing the dashboard and Docker provider does not change API-key authentication or RBAC in Weaviate.
+
 ## Certificate and hostnames
 
 Domains in `.env`, certificate SANs, and client connections must match. For the unchanged example domains:
@@ -45,7 +47,7 @@ openssl req -x509 -newkey rsa:4096 -noenc -keyout certs/local.key -out certs/loc
 chmod 600 certs/local.key
 ```
 
-This creates a local self-signed server certificate. Tests explicitly trust `certs/local.crt`; it does not replace certificate management for other environments. [`dynamic/tls.yml`](dynamic/tls.yml) loads `local.crt` and `local.key` and defines the header middleware. It also defines the router and backend service; the domain and backend port are populated from Traefik environment variables when loaded.
+This creates a local self-signed server certificate. Tests explicitly trust `certs/local.crt`; it does not replace certificate management for other environments. [`dynamic/tls.yml`](dynamic/tls.yml) loads `local.crt` and `local.key` and defines the header middleware. It also defines the router and backend service; the domain and backend port are populated from Traefik environment variables when loaded. Only `certs/local.crt` and `certs/local.key` are individually mounted read-only into Traefik; other files in the certificate directory are not exposed.
 
 The example domains must resolve to the local host. If local DNS does not already provide this, add these entries to `/etc/hosts`, or `C:\Windows\System32\drivers\etc\hosts` on Windows:
 
@@ -94,8 +96,10 @@ The endpoint **from Weaviate** is `http://ollama:11434`. The endpoint **for the 
 
 ## Python examples
 
-- [REST example](example-clients-python/weaviate-rest-minimal.py): creates `Question`, downloads example data from the internet, and writes objects.
-- [Ollama example](example-clients-python/weaviate-ollama-client.py): checks models, creates or uses `QuestionOllama`, inserts an object, and performs a generative search.
+- [REST example](example-clients-python/weaviate-rest-minimal.py): creates collection `Question`, downloads example data from the internet, and writes objects.
+- [Ollama example](example-clients-python/weaviate-ollama-client.py): checks models, creates or uses collection `QuestionOllama`, inserts an object, and performs a generative search.
+
+A collection contains objects with defined properties. The REST API still names the collection-name field `class`; do not replace this API identifier with `collection`.
 
 Both supplied scripts connect directly to the local HTTP endpoint; the Ollama example also uses local gRPC. They do not test the Traefik TLS endpoint. Adapt `API_KEY` in each script before running. The examples modify data and may add more objects on repeated runs.
 
@@ -124,6 +128,7 @@ docker compose down
 
 ## References
 
+- [Weaviate: Collection definition and REST field `class`](https://docs.weaviate.io/weaviate/config-refs/collections)
 - [Weaviate authentication](https://docs.weaviate.io/deploy/configuration/authentication)
 - [Traefik: dashboard and access protection](https://doc.traefik.io/traefik/v3.5/operations/dashboard/)
 - [Traefik: file provider](https://doc.traefik.io/traefik/reference/install-configuration/providers/others/file/)

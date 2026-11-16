@@ -13,7 +13,7 @@
   - [Zeichensätze](#zeichensätze)
   - [Protokollierung](#protokollierung)
   - [Binärlog](#binärlog)
-  - [mysqldump](#mysqldump)
+  - [mariadb-dump](#mariadb-dump)
 - [Betrieb](#betrieb)
 
 ## Installation und aktive Konfiguration
@@ -74,11 +74,11 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 | Option              | Bedeutung                    | Empfehlung |
 |---------------------|------------------------------|------------|
 | `bind_address`      | Bind-IP                      | `127.0.0.1` (oder VPN-IP) |
-| `skip_networking`   | TCP/IP deaktivieren          | `0`; nur `1`, wenn ausschließlich lokal |
+| `skip_networking` | TCP/IP deaktivieren | `0`; `1` nur mit aktiviertem lokalem Transport (z. B. Named Pipe) |
 | `skip_name_resolve` | DNS-Lookups vermeiden        | `1` |
 | `max_connections`   | Maximale Clients             | 100–500 je nach Workload |
 | `local_infile`      | `LOAD DATA LOCAL INFILE`     | `0` (deaktiviert) |
-| `secure_file_priv` | Import/Export-Verzeichnis | Dediziertes Verzeichnis festlegen; in der Vorlage auskommentiert |
+| `secure_file_priv` | Verzeichnis für serverseitigen Dateiimport/-export | Dediziertes Verzeichnis festlegen; in der Vorlage auskommentiert |
 | `symbolic-links`    | Symlinks in Tabellen         | `0` (deaktiviert) |
 
 ### TLS/SSL
@@ -98,7 +98,7 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 | `innodb_buffer_pool_size`    | RAM für InnoDB           | An verfügbaren RAM und Workload anpassen |
 | `innodb_log_file_size`       | Redo-Log-Größe           | 128–512 MB |
 | `innodb_file_per_table`      | Separater Tablespace     | `1` |
-| `innodb_flush_log_at_trx_commit` | Transaktionssicherheit | `1` (ACID), `2` bei Performancebedarf |
+| `innodb_flush_log_at_trx_commit` | Redo-Log bei Commit schreiben/synchronisieren | `1`; bei `2` ist Datenverlust nach einem Absturz möglich |
 | `innodb_flush_method`        | I/O-Handling             | Unter Windows nicht pauschal übernehmen |
 | `aria_pagecache_buffer_size` | Aria-Cache               | ~128 MB (Workload-abhängig) |
 | `aria_log_file_size`         | Aria-Loggröße            | ~64 MB |
@@ -133,12 +133,14 @@ Die nachfolgende Referenz enthält Empfehlungen. Die tatsächlich wirksamen Wert
 | `expire_logs_days`      | Binlog-Aufbewahrung    | 7–14 Tage |
 | `binlog_expire_logs_seconds` | Binlog-Aufbewahrung (neu) | 7–14 Tage (604800–1209600) |
 
-### mysqldump
+### mariadb-dump
+
+Das Werkzeug heißt [`mariadb-dump`](https://mariadb.com/docs/server/clients-and-utilities/backup-restore-and-import-clients/mariadb-dump); die vorhandene Optionsgruppe `[mysqldump]` wird weiterhin gelesen. Der frühere Programmname `mysqldump` ist im offiziellen MariaDB-Docker-Image seit Version 11.0 nicht mehr enthalten.
 
 | Option            | Bedeutung                   | Empfehlung |
 |-------------------|-----------------------------|------------|
 | `quick`           | Zeilenweiser Export         | Aktivieren |
-| `quote-names`     | Sonderzeichen in Backticks  | Aktivieren |
+| `quote-names` | Bezeichner in Backticks setzen | Aktivieren |
 | `max_allowed_packet` | Paketgröße bei Dumps     | `64M` oder höher |
 
 ## Betrieb

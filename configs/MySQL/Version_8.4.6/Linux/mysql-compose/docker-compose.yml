@@ -31,8 +31,20 @@ services:
       - mysql_data:/var/lib/mysql
       - mysql_logs:/var/log/mysql
       - type: bind
-        source: ./ssl
-        target: /run/tls-source
+        source: ./ssl/ca-cert.pem
+        target: /run/tls-source/ca-cert.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssl/server-cert.pem
+        target: /run/tls-source/server-cert.pem
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./ssl/server-key.pem
+        target: /run/tls-source/server-key.pem
         read_only: true
         bind:
           create_host_path: false

@@ -1,5 +1,6 @@
 """
-Minimal REST-only Weaviate client for testing a secure instance.
+Minimal REST-only Weaviate client using the direct local HTTP endpoint.
+Uses API-key authentication; this example does not test Traefik or TLS.
 """
 
 import requests
@@ -16,15 +17,16 @@ def check_ready():
     print("Ready:", r.status_code)
 
 
-def create_class():
+def create_collection():
     schema = {
+        # The REST API uses "class" for the collection name.
         "class": COLLECTION_NAME,
         "properties": [
             {"name": "answer", "dataType": ["text"]},
             {"name": "question", "dataType": ["text"]},
             {"name": "category", "dataType": ["text"]},
         ],
-        # No vectorizer required → simplest possible class
+        # A collection without a vectorizer accepts externally supplied vectors.
         "vectorizer": "none"
     }
 
@@ -36,7 +38,7 @@ def create_class():
         },
         data=json.dumps(schema),
     )
-    print("Create class:", r.status_code, r.text)
+    print("Create collection:", r.status_code, r.text)
 
 
 def fetch_data():
@@ -80,7 +82,7 @@ def query_example():
 
 def main():
     check_ready()
-    create_class()
+    create_collection()
     data = fetch_data()
     import_data(data)
     query_example()

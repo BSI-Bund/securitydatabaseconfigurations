@@ -67,7 +67,7 @@ In a second PowerShell:
 mongosh --host localhost --port 27018 --tls --tlsCAFile C:\data\test-ca.pem --tlsCertificateKeyFile C:\data\mongo-client.pem --username admin --authenticationDatabase admin --password
 ```
 
-The password is requested interactively. The script creates only a root administration account; create restricted application accounts separately.
+The password is requested interactively. The script creates user `admin` in the `admin` authentication database with the cluster-wide `root` role; create restricted application accounts separately.
 
 ## Verify the effective configuration
 

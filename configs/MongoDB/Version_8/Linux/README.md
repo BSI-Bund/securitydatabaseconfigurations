@@ -21,7 +21,7 @@ cp .env.example .env
 mkdir -p ssl
 ```
 
-1. Replace all sample secrets in `.env`. `MONGO_USER` and `MONGO_PASSWORD` are passed as `MONGO_INITDB_ROOT_USERNAME` and `MONGO_INITDB_ROOT_PASSWORD`: this account has **root privileges in `admin`**, despite the sample name `appuser`.
+1. Replace all sample secrets in `.env`. `MONGO_USER` and `MONGO_PASSWORD` are passed as `MONGO_INITDB_ROOT_USERNAME` and `MONGO_INITDB_ROOT_PASSWORD`: this account is created in the `admin` authentication database and receives the **cluster-wide `root` role**, despite the sample name `appuser`.
 2. Follow the [TLS guide](../../../../docs/TLS.md) to create CA, server, and client certificates. Server SANs must cover `localhost` and any container/DNS name actually used.
 3. Prepare these files in `mongodb-compose/ssl/`:
 
@@ -31,7 +31,7 @@ mkdir -p ssl
 | `test-server1.pem` | Combined server key and certificate; mounted into the server |
 | `client.pem` | Combined client key and certificate; for the client only |
 
-4. The `ssl/` certificate source and `mongo_logs` log volume are already mounted. The startup wrapper initializes log permissions and copies only the two required server PEM files into a private tmpfs directory under `/etc/ssl/mongodb`. Files are owned by `mongodb` with mode `0600`; the client key stays on the client.
+4. Only `ssl/test-ca.pem` and `ssl/test-server1.pem` are mounted as read-only files, rather than the whole directory containing the client PEM. The startup wrapper initializes the log directory in volume `mongo_logs` with suitable permissions and copies the two server PEM files into a private tmpfs directory at `/etc/ssl/mongodb`. Files receive owner `mongodb` and mode `0600`; the client key stays on the client.
 5. Run `docker compose config --quiet` and review the resolved configuration.
 
 The template requires TLS. Because `allowConnectionsWithoutCertificates` is not enabled, clients also need a certificate signed by the same trusted CA. It does not replace username/password authentication.

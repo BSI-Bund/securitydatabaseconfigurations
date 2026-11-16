@@ -74,7 +74,18 @@ services:
       
 
     volumes:
-      - ./certs:/certs:ro
+      - type: bind
+        source: ./certs/local.crt
+        target: /certs/local.crt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./certs/local.key
+        target: /certs/local.key
+        read_only: true
+        bind:
+          create_host_path: false
       - ./dynamic:/etc/traefik/dynamic:ro
 
     networks:

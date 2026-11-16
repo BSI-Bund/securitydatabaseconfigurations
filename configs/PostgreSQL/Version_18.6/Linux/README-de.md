@@ -24,7 +24,7 @@
 
 ## Sicherheitsstatus
 
-Dies ist eine sichere Baseline, aber keine Produktionsgarantie. Enthalten sind:
+Die Basisvariante ist für abgegrenzte lokale Tests vorgesehen. Für produktive TCP-Verbindungen die TLS-Variante verwenden und die gemeinsamen Freigabekriterien erfüllen. Enthalten sind:
 
 - Host-Port-Bindings nur auf localhost in Docker Compose
 - SCRAM-SHA-256 für Passwortauthentifizierung
@@ -60,6 +60,8 @@ docker compose up -d
 
 Das Standardsetup ist bewusst ohne Zertifikate startfähig. PostgreSQL wird am Host nur auf `127.0.0.1:${DB_PORT:-5432}` veröffentlicht.
 
+Die Init-Skripte laufen nur bei einem leeren Daten-Volume. Änderungen an `.env` ändern keine bereits angelegten Datenbanken oder Rollenpasswörter; bestehende Rollenpasswörter in einer administrativen SQL-Sitzung ändern.
+
 ---
 
 ## TLS-Modus
@@ -74,7 +76,9 @@ Für lokale Tests:
 
 Dieses Skript erzeugt lokale Zertifikate, falls sie fehlen, startet die TLS-Compose-Variante, wartet auf den Healthy-Status, prüft eine TLS-Verbindung und prüft, dass Nicht-TLS-TCP-Zugriff abgelehnt wird.
 
-Adminer kann im TLS-Modus weiter genutzt werden. Der Server bleibt `postgres`; als Login sind `app_admin` oder `app_reader` vorgesehen. PostgreSQL akzeptiert TCP-Verbindungen dann nur verschlüsselt. Die Adminer-Weboberfläche selbst bleibt lokal per HTTP auf `127.0.0.1:8080` erreichbar.
+Der Test verwendet Datenbankname und Anwendungspasswort aus der wirksamen Container-Konfiguration, also auch nach Anpassung von `.env`. Für ein anderes Prüfkonto `POSTGRES_TLS_TEST_USER` und `POSTGRES_TLS_TEST_PASSWORD` setzen.
+
+Adminer kann im TLS-Modus weiter genutzt werden. Der Server bleibt `postgres`; als Login sind `app_admin` oder `app_reader` vorgesehen. Der Override erzwingt für Adminers Datenbankverbindung `verify-full` und bindet nur das öffentliche CA-Zertifikat in Adminer ein. Das Serverzertifikat muss deshalb auch den SAN `DNS:postgres` enthalten. PostgreSQL akzeptiert TCP-Verbindungen dann nur verschlüsselt. Die Adminer-Weboberfläche selbst bleibt ausschließlich für lokale Tests per HTTP auf `127.0.0.1:8080` erreichbar.
 
 Manueller TLS-Ablauf:
 
@@ -90,6 +94,8 @@ Die TLS-Variante nutzt:
 - `./ssl/server.crt`
 - `./ssl/server.key`
 - `./ssl/ca.crt`
+
+Nur diese drei Zertifikats-/Schlüsseldateien werden einzeln in den Datenbankcontainer gemountet. Der Generator speichert die private Entwicklungs-CA separat unter `${XDG_DATA_HOME:-$HOME/.local/share}/db-sec-conf/postgresql-dev-ca`; mit `CA_DIR` kann ein anderes geschütztes Verzeichnis außerhalb des Repositorys gewählt werden. Eine bestehende CA dort wird wiederverwendet. Ältere `ssl/ca.key`-Dateien außerhalb des bereitgestellten Zertifikatsverzeichnisses sichern; sie werden vom TLS-Override nicht eingebunden.
 
 Client-Beispiel mit Zertifikatsprüfung:
 
@@ -136,6 +142,8 @@ Die Tabelle zeigt die Vorlagenwerte. Für den Login die tatsächlich in `.env` g
 Der Benutzer `postgres` ist ein Superuser. Er wird vom Container zum Initialisieren, für Backup/Restore und für administrative Prüfungen benötigt, sollte aber nicht für normalen Anwendungs- oder Adminer-Zugriff genutzt werden.
 
 Hinweis: Wenn Adminer oben `postgres` anzeigt, ist damit der Compose-Service/Servername gemeint. Der angemeldete Datenbankbenutzer steht separat in der URL bzw. im Login-Formular.
+
+`app_admin` und `app_reader` sind Rollen mit `LOGIN`, also Datenbankbenutzer. `app_admin` erhält `CREATE` im Schema `public`, `SELECT`/`INSERT`/`UPDATE`/`DELETE` auf vorhandenen Tabellen sowie Sequenzrechte. `app_reader` erhält `SELECT`. `app_admin` besitzt keine allgemeinen Administrationsrechte; `ALTER` und `DROP` setzen im Regelfall Objekteigentum voraus. Die vom Bootstrap-Konto angelegte Tabelle `public.users` gehört weiterhin diesem Konto.
 
 ---
 
@@ -257,7 +265,7 @@ Für dieses Setup gilt das [gemeinsame BSI-Alignment für alle Datenbankvorlagen
 | `./initdb:/docker-entrypoint-initdb.d:ro` | Initiale SQL-Skripte, nur beim ersten Start |
 | `../postgresql.conf:/etc/postgresql/postgresql.conf:ro` | Basis-Serverkonfiguration |
 | `../pg_hba.conf:/etc/postgresql/pg_hba.conf:ro` | Basis-Authentifizierungsregeln |
-| `./ssl:/etc/postgresql/ssl:ro` | TLS-Zertifikate, nur TLS-Modus |
+| `./ssl/{server.crt,server.key,ca.crt}` | Drei einzelne schreibgeschützte Datei-Mounts unter `/etc/postgresql/ssl/`, nur TLS-Modus |
 | `127.0.0.1:5432` | PostgreSQL-Zugriff vom Host |
 | `127.0.0.1:8080` | Adminer-Zugriff vom Host |
 
@@ -298,6 +306,8 @@ docker volume rm <project>_postgres_data
 - [PostgreSQL `pg_hba.conf`-Dokumentation](https://www.postgresql.org/docs/18/auth-pg-hba-conf.html)
 - [PostgreSQL Passwortauthentifizierung und SCRAM](https://www.postgresql.org/docs/18/auth-password.html)
 - [PostgreSQL Rollenattribute](https://www.postgresql.org/docs/18/role-attributes.html)
+- [PostgreSQL: libpq-TLS-Umgebungsvariablen](https://www.postgresql.org/docs/18/libpq-envars.html)
+- [PostgreSQL Objektrechte und Eigentum](https://www.postgresql.org/docs/18/sql-grant.html)
 - [PostgreSQL Verbindungseinstellungen](https://www.postgresql.org/docs/18/runtime-config-connection.html)
 - [PostgreSQL Resource-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-resource.html)
 - [PostgreSQL WAL-Einstellungen](https://www.postgresql.org/docs/18/runtime-config-wal.html)
